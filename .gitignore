@@ -41,3 +41,13 @@ next-env.d.ts
 *.swp
 *.swo
 *~
+
+# Temporary files
+temp/
+
+# Prisma (generated from services repo)
+prisma/
+
+# Yalc (local package management)
+.yalc/
+yalc.lock

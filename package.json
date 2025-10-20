@@ -9,7 +9,16 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "postinstall": "npm run prisma:sync && prisma generate",
+    "prisma:sync": "bash scripts/sync-prisma-schema.sh",
+    "prisma:generate": "npm run prisma:sync && prisma generate",
+    "yalc:link:services": "yalc add @midcurve/services && npm install",
+    "yalc:link:shared": "yalc add @midcurve/shared && npm install",
+    "yalc:link:all": "yalc add @midcurve/services @midcurve/shared && npm install",
+    "yalc:update": "yalc update",
+    "yalc:unlink": "yalc remove @midcurve/services @midcurve/shared && npm install",
+    "yalc:clean": "rimraf .yalc yalc.lock"
   },
   "keywords": [
     "midcurve",
@@ -21,11 +30,16 @@
   "author": "Midcurve Finance",
   "license": "MIT",
   "dependencies": {
-    "@midcurve/services": "file:../midcurve-services",
+    "@auth/prisma-adapter": "^2.11.0",
+    "@midcurve/services": "file:.yalc/@midcurve/services",
     "@midcurve/shared": "file:../midcurve-shared",
+    "@prisma/client": "^6.17.1",
+    "nanoid": "^5.1.6",
     "next": "^15.5.0",
+    "next-auth": "^5.0.0-beta.25",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "siwe": "^2.3.2",
     "zod": "^3.22.0"
   },
   "devDependencies": {
@@ -34,7 +48,9 @@
     "@types/react-dom": "^19.0.0",
     "eslint": "^9.0.0",
     "eslint-config-next": "^15.5.0",
-    "typescript": "^5.3.3"
+    "prisma": "^6.17.1",
+    "typescript": "^5.3.3",
+    "yalc": "^1.0.0-pre.53"
   },
   "engines": {
     "node": ">=18.0.0"

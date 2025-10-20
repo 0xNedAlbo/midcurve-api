@@ -91,7 +91,7 @@ midcurve-api/
 │   │   └── index.ts
 │   │
 │   ├── middleware/           # API middleware (future)
-│   ├── lib/                  # Utilities (future)
+│   ├── utils/                  # Utilities (future)
 │   └── config/               # Configuration (future)
 │
 ├── .env.example              # Environment variables template
@@ -146,7 +146,7 @@ types/tokens/
 ### Installation
 
 ```bash
-# Install dependencies
+# Install dependencies (automatically syncs and generates Prisma client)
 npm install
 
 # Copy environment variables
@@ -156,6 +156,20 @@ cp .env.example .env
 # (DATABASE_URL, RPC URLs, etc.)
 ```
 
+**Note on Prisma Schema:**
+This project references the Prisma schema from `@midcurve/services`. During `npm install`, the schema is automatically:
+1. Copied from `../midcurve-services/prisma/schema.prisma`
+2. Modified to generate the client to this project's `node_modules`
+3. Generated via `prisma generate`
+
+If the services schema changes, run `npm run prisma:generate` to resync.
+
+**Note on Yalc (Local Package Management):**
+This project uses **yalc** to consume `@midcurve/services`:
+- Services declares `@prisma/client` as a peer dependency
+- This ensures single Prisma client instance (no duplication)
+- After changes to services, run `npm run yalc:push` in services repo to update API
+
 ### Development
 
 ```bash
@@ -164,6 +178,17 @@ npm run dev
 
 # Open http://localhost:3000
 # API available at http://localhost:3000/api/health
+```
+
+**Working with local services changes:**
+
+```bash
+# In services repo, after making changes:
+cd ../midcurve-services
+npm run yalc:push
+
+# API automatically picks up changes
+# (or run npm run yalc:update in API repo)
 ```
 
 ### Building
