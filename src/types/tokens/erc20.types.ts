@@ -23,7 +23,7 @@ export interface CreateErc20TokenRequest {
 }
 
 /**
- * Token data structure (shared by create and search responses)
+ * Token data structure (for create/discover response - full Token object)
  */
 export interface CreateErc20TokenData {
   id: string;
@@ -40,6 +40,26 @@ export interface CreateErc20TokenData {
   };
   createdAt: string; // ISO 8601
   updatedAt: string; // ISO 8601
+}
+
+/**
+ * Token search candidate from CoinGecko (lightweight, not in database yet)
+ *
+ * This represents a token found in CoinGecko's catalog that matches
+ * the search criteria. To add it to the database, use POST /api/v1/tokens/erc20
+ * with the address and chainId from this candidate.
+ */
+export interface TokenSearchCandidate {
+  /** CoinGecko coin ID */
+  coingeckoId: string;
+  /** Token symbol (uppercase) */
+  symbol: string;
+  /** Token name */
+  name: string;
+  /** Contract address on the specified chain */
+  address: string;
+  /** EVM chain ID where this token exists */
+  chainId: number;
 }
 
 /**
@@ -65,12 +85,17 @@ export interface SearchErc20TokensQuery {
    * Optional - partial name match (case-insensitive)
    */
   name?: string;
+
+  /**
+   * Optional - contract address to search for (exact match, case-insensitive)
+   */
+  address?: string;
 }
 
 /**
- * GET /api/v1/tokens/erc20/search - Response data (array of tokens)
+ * GET /api/v1/tokens/erc20/search - Response data (array of search candidates)
  */
-export type SearchErc20TokensData = CreateErc20TokenData[];
+export type SearchErc20TokensData = TokenSearchCandidate[];
 
 /**
  * GET /api/v1/tokens/erc20/search - Response

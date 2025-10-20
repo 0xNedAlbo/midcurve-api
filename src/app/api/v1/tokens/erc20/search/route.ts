@@ -25,19 +25,28 @@ const erc20TokenService = new Erc20TokenService();
 /**
  * GET /api/v1/tokens/erc20/search
  *
- * Search for ERC-20 tokens within a specific chain by symbol and/or name.
- * Returns up to 10 results, ordered alphabetically by symbol.
+ * Search for ERC-20 tokens in CoinGecko's catalog by symbol, name, and/or address.
+ * Returns up to 10 matching token candidates from CoinGecko (not from database).
+ *
+ * All search criteria are combined with AND logic - a token must match ALL provided
+ * parameters to be included in results.
  *
  * Query params:
  * - chainId (required): EVM chain ID
  * - symbol (optional): Partial symbol match (case-insensitive)
  * - name (optional): Partial name match (case-insensitive)
- * - At least one of symbol or name must be provided
+ * - address (optional): Contract address (exact match, case-insensitive)
+ * - At least one of symbol, name, or address must be provided
  *
- * Example:
+ * Examples:
  * GET /api/v1/tokens/erc20/search?chainId=1&symbol=usd
+ * GET /api/v1/tokens/erc20/search?chainId=1&address=0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48
+ * GET /api/v1/tokens/erc20/search?chainId=1&address=0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48&symbol=USDC
  *
- * Returns: Array of matching tokens (max 10 results, no pagination)
+ * Returns: Array of matching token candidates from CoinGecko (max 10 results)
+ *
+ * To add a token to the database, use POST /api/v1/tokens/erc20 with
+ * the address and chainId from the search result.
  */
 export async function GET(request: NextRequest): Promise<Response> {
   return withAuth(request, async (_user) => {
@@ -48,6 +57,7 @@ export async function GET(request: NextRequest): Promise<Response> {
         chainId: searchParams.get('chainId'),
         symbol: searchParams.get('symbol') || undefined,
         name: searchParams.get('name') || undefined,
+        address: searchParams.get('address') || undefined,
       };
 
       // Validate query params
@@ -64,32 +74,20 @@ export async function GET(request: NextRequest): Promise<Response> {
         });
       }
 
-      const { chainId, symbol, name } = validation.data;
+      const { chainId, symbol, name, address } = validation.data;
 
-      // Search tokens via service
-      const tokens = await erc20TokenService.searchTokens({
+      // Search tokens via service (searches CoinGecko, not database)
+      const candidates = await erc20TokenService.searchTokens({
         chainId,
         symbol,
         name,
+        address,
       });
 
-      // Convert to API response format
-      const tokensData = tokens.map((token) => ({
-        id: token.id,
-        tokenType: token.tokenType,
-        name: token.name,
-        symbol: token.symbol,
-        decimals: token.decimals,
-        logoUrl: token.logoUrl,
-        coingeckoId: token.coingeckoId,
-        marketCap: token.marketCap,
-        config: token.config,
-        createdAt: token.createdAt.toISOString(),
-        updatedAt: token.updatedAt.toISOString(),
-      }));
-
-      const response = createSuccessResponse(tokensData, {
-        count: tokensData.length,
+      // Candidates are already in the correct API response format
+      // (no conversion needed - they come from CoinGecko)
+      const response = createSuccessResponse(candidates, {
+        count: candidates.length,
         limit: 10,
         timestamp: new Date().toISOString(),
       });
@@ -108,6 +106,17 @@ export async function GET(request: NextRequest): Promise<Response> {
           );
           return NextResponse.json(errorResponse, {
             status: ErrorCodeToHttpStatus[ApiErrorCode.VALIDATION_ERROR],
+          });
+        }
+
+        if (error.message.includes('not configured')) {
+          const errorResponse = createErrorResponse(
+            ApiErrorCode.CHAIN_NOT_SUPPORTED,
+            'Chain not supported',
+            error.message
+          );
+          return NextResponse.json(errorResponse, {
+            status: ErrorCodeToHttpStatus[ApiErrorCode.CHAIN_NOT_SUPPORTED],
           });
         }
       }

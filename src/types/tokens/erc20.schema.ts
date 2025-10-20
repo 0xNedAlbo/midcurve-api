@@ -25,7 +25,7 @@ export const CreateErc20TokenRequestSchema = z.object({
  * GET /api/v1/tokens/erc20/search - Query validation
  *
  * chainId is REQUIRED
- * At least one of symbol or name must be provided
+ * At least one of symbol, name, or address must be provided
  */
 export const SearchErc20TokensQuerySchema = z
   .object({
@@ -35,8 +35,15 @@ export const SearchErc20TokensQuerySchema = z
       .positive('Chain ID must be positive'),
     symbol: z.string().min(1, 'Symbol must not be empty').optional(),
     name: z.string().min(1, 'Name must not be empty').optional(),
+    address: z
+      .string()
+      .regex(/^0x[a-fA-F0-9]{40}$/, 'Invalid Ethereum address format')
+      .optional(),
   })
-  .refine((data) => data.symbol !== undefined || data.name !== undefined, {
-    message: 'At least one of symbol or name must be provided',
-    path: ['symbol', 'name'],
-  });
+  .refine(
+    (data) => data.symbol !== undefined || data.name !== undefined || data.address !== undefined,
+    {
+      message: 'At least one of symbol, name, or address must be provided',
+      path: ['symbol', 'name', 'address'],
+    }
+  );
