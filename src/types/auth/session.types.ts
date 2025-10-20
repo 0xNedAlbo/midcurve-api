@@ -5,17 +5,7 @@
  */
 
 import type { DefaultSession } from 'next-auth';
-
-// Define wallet address type locally to avoid Prisma client dependency
-export interface WalletAddress {
-  id: string;
-  userId: string;
-  address: string;
-  chainId: number;
-  isPrimary: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-}
+import type { AuthWalletAddress } from '@midcurve/shared';
 
 /**
  * Extend Auth.js module to include custom user fields
@@ -24,7 +14,7 @@ declare module 'next-auth' {
   interface Session {
     user: {
       id?: string;
-      wallets?: WalletAddress[];
+      wallets?: AuthWalletAddress[];
     } & DefaultSession['user'];
   }
 }
@@ -37,5 +27,5 @@ export interface AuthenticatedUser {
   name?: string | null;
   email?: string | null;
   image?: string | null;
-  wallets?: WalletAddress[];
+  wallets?: AuthWalletAddress[];
 }

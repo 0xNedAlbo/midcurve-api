@@ -142,6 +142,56 @@ types/tokens/
 2. Extract to `@midcurve/api-types` package later
 3. Keep related schemas together
 
+## Type Architecture: Shared Types vs Prisma Types
+
+**Important Design Decision:** API types come from `@midcurve/shared`, NOT from `@prisma/client`.
+
+### Type Source Hierarchy
+
+```typescript
+// ✅ Correct: Import from @midcurve/shared
+import type { AuthWalletAddress, User } from '@midcurve/shared';
+
+// ❌ Wrong: Import from @prisma/client
+import type { AuthWalletAddress } from '@prisma/client';
+
+// ❌ Wrong: Define locally
+export interface WalletAddress { /* ... */ }
+```
+
+**Reasons:**
+1. **Shared Contract** - Types shared across API, UI, workers (all consumers)
+2. **Portable** - No Prisma dependency, works in browsers
+3. **Framework-agnostic** - Pure TypeScript types, no ORM coupling
+4. **Single Source of Truth** - Defined once in shared, used everywhere
+5. **Future-proof** - Can extract to `@midcurve/api-types` without changes
+
+### Layer Separation
+
+```
+┌─────────────────────────────────────┐
+│     @midcurve/shared (Types)        │  ← Pure types (no dependencies)
+│  - AuthWalletAddress                │
+│  - User, Token, Pool, Position      │
+└─────────────────────────────────────┘
+           ↑ imports          ↑ imports
+           │                  │
+┌──────────┴────────┐  ┌──────┴─────────────┐
+│  @midcurve/api    │  │ @midcurve/services │
+│  (REST endpoints) │  │ (Business logic)   │
+└───────────────────┘  └────────────────────┘
+                              ↓ uses
+                    ┌─────────────────────┐
+                    │  @prisma/client     │
+                    │  (Database layer)   │
+                    └─────────────────────┘
+```
+
+**Services layer** uses both:
+- `@midcurve/shared` types for portable data structures
+- `@prisma/client` types internally for database operations
+- Converts between them when necessary (usually they match exactly)
+
 ## Dependencies
 
 ### Local Packages (Yalc)

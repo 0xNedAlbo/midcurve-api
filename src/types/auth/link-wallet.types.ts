@@ -6,7 +6,7 @@
 
 import { z } from 'zod';
 import type { ApiResponse } from '../common';
-import type { WalletAddress } from './session.types';
+import type { AuthWalletAddress } from '@midcurve/shared';
 
 /**
  * Request to link additional wallet
@@ -35,7 +35,7 @@ export type LinkWalletResponse = ApiResponse<LinkWalletData>;
 /**
  * GET /api/v1/user/wallets response
  */
-export type ListWalletsResponse = ApiResponse<WalletAddress[]>;
+export type ListWalletsResponse = ApiResponse<AuthWalletAddress[]>;
 
 /**
  * PATCH /api/v1/user/wallets/[id]/primary response
