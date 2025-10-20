@@ -236,6 +236,140 @@ Returns the health status of the API service.
 
 ---
 
+### Token Management
+
+#### POST /api/v1/tokens/erc20
+
+Discover and create an ERC-20 token. Reads metadata from on-chain contract and enriches with CoinGecko data.
+
+**Authentication:** Required (session or API key)
+
+**Request Body:**
+```json
+{
+  "address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+  "chainId": 1
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "clxyz123",
+    "tokenType": "erc20",
+    "name": "USD Coin",
+    "symbol": "USDC",
+    "decimals": 6,
+    "logoUrl": "https://assets.coingecko.com/coins/images/6319/large/USD_Coin_icon.png",
+    "coingeckoId": "usd-coin",
+    "marketCap": 32456789000,
+    "config": {
+      "address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "chainId": 1
+    },
+    "createdAt": "2025-01-20T12:00:00.000Z",
+    "updatedAt": "2025-01-20T12:00:00.000Z"
+  },
+  "meta": {
+    "timestamp": "2025-01-20T12:00:00.000Z"
+  }
+}
+```
+
+**Status Codes:**
+- `200 OK` - Token discovered successfully (or already exists)
+- `400 BAD_REQUEST` - Invalid address, chain not supported, or not ERC-20
+- `401 UNAUTHORIZED` - Authentication required
+- `404 TOKEN_NOT_FOUND` - Token not listed on CoinGecko
+- `500 INTERNAL_SERVER_ERROR` - Server error
+
+**Notes:**
+- Token must be listed on CoinGecko for discovery
+- Idempotent - returns existing token if already discovered
+- Address is normalized to EIP-55 checksum format
+- All tokens are public (visible to all authenticated users)
+
+---
+
+#### GET /api/v1/tokens/erc20/search
+
+Search for ERC-20 tokens within a specific chain by symbol and/or name.
+
+**Authentication:** Required (session or API key)
+
+**Query Parameters:**
+- `chainId` (required) - EVM chain ID to search within
+- `symbol` (optional) - Partial symbol match (case-insensitive)
+- `name` (optional) - Partial name match (case-insensitive)
+- At least one of `symbol` or `name` must be provided
+
+**Example:**
+```
+GET /api/v1/tokens/erc20/search?chainId=1&symbol=usd
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "clxyz123",
+      "tokenType": "erc20",
+      "name": "USD Coin",
+      "symbol": "USDC",
+      "decimals": 6,
+      "logoUrl": "https://assets.coingecko.com/coins/images/6319/large/USD_Coin_icon.png",
+      "coingeckoId": "usd-coin",
+      "marketCap": 32456789000,
+      "config": {
+        "address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+        "chainId": 1
+      },
+      "createdAt": "2025-01-20T12:00:00.000Z",
+      "updatedAt": "2025-01-20T12:00:00.000Z"
+    },
+    {
+      "id": "clxyz456",
+      "tokenType": "erc20",
+      "name": "Tether USD",
+      "symbol": "USDT",
+      "decimals": 6,
+      "logoUrl": "https://assets.coingecko.com/coins/images/325/large/Tether.png",
+      "coingeckoId": "tether",
+      "marketCap": 95123456000,
+      "config": {
+        "address": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+        "chainId": 1
+      },
+      "createdAt": "2025-01-15T10:00:00.000Z",
+      "updatedAt": "2025-01-15T10:00:00.000Z"
+    }
+  ],
+  "meta": {
+    "count": 2,
+    "limit": 10,
+    "timestamp": "2025-01-20T12:00:00.000Z"
+  }
+}
+```
+
+**Status Codes:**
+- `200 OK` - Search successful (may return empty array)
+- `400 VALIDATION_ERROR` - Missing required params or invalid format
+- `401 UNAUTHORIZED` - Authentication required
+- `500 INTERNAL_SERVER_ERROR` - Server error
+
+**Notes:**
+- Returns maximum 10 results, ordered alphabetically by symbol
+- No pagination - users should provide more specific search terms
+- Search is case-insensitive and matches partial strings
+- Only searches within the specified chain
+
+---
+
 *More endpoints will be added incrementally.*
 
 ## API Response Format
