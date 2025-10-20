@@ -1,83 +1,70 @@
 # Midcurve API
 
+> **REST API layer for Midcurve Finance** - Serverless endpoints for frontend consumption
+
+## Quick Navigation
+
+📚 **Architecture & Concepts:** [Monorepo CLAUDE.md](../CLAUDE.md)
+- Ecosystem overview, package roles, core architecture principles, project philosophy
+
+🔧 **Business Logic:** [Services CLAUDE.md](../midcurve-services/CLAUDE.md)
+- Service APIs, database operations, on-chain data reading
+
+📦 **Shared Types:** [Shared README.md](../midcurve-shared/README.md)
+- Type definitions, utilities, math functions
+
+---
+
 ## Project Overview
 
 **Midcurve API** is the RESTful API layer for **Midcurve Finance**, a comprehensive risk management platform for concentrated liquidity (CL) provisioning across multiple blockchain ecosystems (Ethereum, BSC, Solana).
 
 This API serves as the primary interface between frontend applications and the Midcurve platform, providing endpoints for token/pool discovery, position tracking, PnL analytics, and automated rebalancing.
 
-## Midcurve Finance Ecosystem
+### Role in the Ecosystem
 
-```
-┌──────────────────────────────────────────────────────┐
-│            Midcurve Finance Product Suite            │
-├──────────────────────────────────────────────────────┤
-│                                                      │
-│  ┌─────────────────┐         ┌──────────────┐       │
-│  │   UI/Frontend   │────────▶│  API (this)  │       │
-│  │   (Next.js)     │   HTTP  │   (Vercel)   │       │
-│  └─────────────────┘         └──────┬───────┘       │
-│                                     │               │
-│                            ┌────────▼─────────┐     │
-│                            │ @midcurve/shared │     │
-│                            │ Types + Utils    │     │
-│                            └────────┬─────────┘     │
-│                                     │               │
-│                            ┌────────▼──────────┐    │
-│                            │@midcurve/services │    │
-│                            │  Business Logic   │    │
-│                            └────────┬──────────┘    │
-│                                     │               │
-│                            ┌────────▼─────────┐     │
-│                            │    PostgreSQL     │     │
-│                            └──────────────────┘     │
-│                                                      │
-└──────────────────────────────────────────────────────┘
-```
-
-### Repository Structure
-
-| Repository | Purpose | Consumed By |
-|------------|---------|-------------|
-| **@midcurve/shared** | Pure types + utilities (no DB/services) | API, UI, Services, Workers |
-| **@midcurve/services** | Business logic + DB operations (Prisma) | API, Workers |
-| **@midcurve/api** (this) | RESTful API endpoints | UI, External clients |
-| **@midcurve/api-types** | API request/response types (future) | UI, External clients |
-
-## Purpose of This API Project
-
-**What it does:**
+The API acts as a thin layer that:
 - Exposes REST endpoints for frontend consumption
 - Validates requests with Zod schemas
 - Delegates business logic to `@midcurve/services`
 - Returns standardized JSON responses
-- Handles authentication (NextAuth + API keys)
-- Deployed as serverless functions on Vercel
+- Handles authentication (SIWE + API keys)
 
-**What it does NOT do:**
-- Direct database access (uses services layer)
-- Business logic implementation (delegates to services)
-- Complex calculations (uses shared utilities)
+For complete ecosystem architecture and package responsibilities, see:
+**[Package Roles & Responsibilities](../CLAUDE.md#package-roles--responsibilities)**
 
-## Prisma Schema Management & Peer Dependencies
+---
 
-**Important:** This project does NOT maintain its own Prisma schema. Instead:
+## Architecture Overview
 
-1. **Schema Source:** The Prisma schema is maintained in `@midcurve/services/prisma/schema.prisma`
-2. **Auto-Sync:** During `npm install` (postinstall hook), the schema is automatically:
-   - Copied from services repo
-   - Modified to output the Prisma client to this project's `node_modules`
-   - Generated via `prisma generate`
-3. **Manual Sync:** If the services schema changes, run `npm run prisma:generate` to resync
-4. **Script:** The sync logic is in `scripts/sync-prisma-schema.sh`
+For comprehensive architectural documentation, see the [monorepo CLAUDE.md](../CLAUDE.md):
 
-**Peer Dependency Pattern:**
-- `@midcurve/services` declares `@prisma/client` as a **peer dependency**
-- This API project installs `@prisma/client` directly (satisfying the peer dependency)
-- Services uses the API's Prisma client instance (no duplication)
-- Single source of truth for database models
+- **[Monorepo Architecture](../CLAUDE.md#monorepo-architecture)** - Ecosystem diagram and repository structure
+- **[Type Hierarchy](../CLAUDE.md#1-type-hierarchy--separation-of-concerns)** - Why types come from @midcurve/shared, not Prisma
+- **[Prisma Schema Management](../CLAUDE.md#2-prisma-schema-management--peer-dependencies)** - Peer dependency pattern, auto-sync during install
+- **[Local Package Management](../CLAUDE.md#3-local-package-management-with-yalc)** - Yalc workflow for services consumption
+- **[Authentication Architecture](../CLAUDE.md#6-authentication-architecture)** - SIWE + API keys, dual auth strategy
+- **[Project Philosophy](../CLAUDE.md#project-philosophy--risk-management-approach)** - Quote/base tokens, risk definition, cash flow measurement
 
-This ensures all projects (API, workers, etc.) use the exact same schema definition while generating their own Prisma clients, with services consuming the client from the parent project.
+### API-Specific Architecture Notes
+
+**Prisma Integration:**
+This project uses a Prisma client generated from the services repo schema. During `npm install`, the schema is automatically synced from `@midcurve/services` and the client generated locally via the `postinstall` hook.
+
+**Type Imports:**
+Always import domain types from `@midcurve/shared`, NOT from `@prisma/client`:
+
+```typescript
+// ✅ Correct
+import type { AuthWalletAddress, User, Token } from '@midcurve/shared';
+
+// ❌ Wrong
+import type { AuthWalletAddress } from '@prisma/client';
+```
+
+**Reasons:** Shared types are portable (browser-compatible), framework-agnostic, and form the API contract. See [Type Hierarchy](../CLAUDE.md#1-type-hierarchy--separation-of-concerns) for details.
+
+---
 
 ## Project Structure
 
@@ -86,23 +73,28 @@ midcurve-api/
 ├── src/
 │   ├── app/
 │   │   └── api/              # Next.js API routes (App Router)
+│   │       ├── auth/         # Authentication endpoints (SIWE)
 │   │       ├── health/       # GET /api/health
-│   │       └── v1/           # Versioned endpoints (future)
-│   │           ├── tokens/
-│   │           ├── pools/
-│   │           └── positions/
+│   │       └── v1/           # Versioned API endpoints
+│   │           ├── auth/     # Auth management (nonce, link-wallet)
+│   │           ├── user/     # User management (me, wallets, api-keys)
+│   │           ├── tokens/   # Token endpoints (future)
+│   │           ├── pools/    # Pool endpoints (future)
+│   │           └── positions/ # Position endpoints (future)
 │   │
 │   ├── types/                # API types (future @midcurve/api-types)
 │   │   ├── common/           # ApiResponse<T>, ApiError, Pagination
+│   │   ├── auth/             # Authentication types
 │   │   ├── health/           # Health endpoint types
-│   │   ├── tokens/           # Token endpoints types
-│   │   ├── pools/            # Pool endpoints types
-│   │   └── positions/        # Position endpoints types
+│   │   ├── tokens/           # Token endpoint types (future)
+│   │   ├── pools/            # Pool endpoint types (future)
+│   │   └── positions/        # Position endpoint types (future)
+│   │
+│   ├── lib/                  # Libraries
+│   │   └── auth.ts           # Auth.js configuration
 │   │
 │   ├── middleware/           # API middleware
-│   │   ├── with-auth.ts      # Authentication (session + API key)
-│   │   ├── with-logging.ts   # Request logging (Pino)
-│   │   └── with-validation.ts # Zod validation wrapper
+│   │   └── with-auth.ts      # Authentication (session + API key)
 │   │
 │   ├── utils/                # Utilities
 │   │   ├── errors.ts         # Error handling helpers
@@ -111,12 +103,17 @@ midcurve-api/
 │   └── config/               # Configuration
 │       └── constants.ts      # API constants
 │
+├── scripts/
+│   └── sync-prisma-schema.sh # Prisma schema sync script
+│
 ├── .env.example
 ├── package.json
 ├── tsconfig.json
 ├── next.config.ts
 └── vercel.json
 ```
+
+---
 
 ## Type Organization Pattern
 
@@ -137,107 +134,16 @@ types/tokens/
   └── index.ts
 ```
 
-**Why?** Makes it easy to:
-1. Find all types for a specific endpoint
-2. Extract to `@midcurve/api-types` package later
+**Why?**
+1. Find all types for a specific endpoint easily
+2. Extract to `@midcurve/api-types` package later (Phase 4)
 3. Keep related schemas together
 
-## Type Architecture: Shared Types vs Prisma Types
-
-**Important Design Decision:** API types come from `@midcurve/shared`, NOT from `@prisma/client`.
-
-### Type Source Hierarchy
-
-```typescript
-// ✅ Correct: Import from @midcurve/shared
-import type { AuthWalletAddress, User } from '@midcurve/shared';
-
-// ❌ Wrong: Import from @prisma/client
-import type { AuthWalletAddress } from '@prisma/client';
-
-// ❌ Wrong: Define locally
-export interface WalletAddress { /* ... */ }
-```
-
-**Reasons:**
-1. **Shared Contract** - Types shared across API, UI, workers (all consumers)
-2. **Portable** - No Prisma dependency, works in browsers
-3. **Framework-agnostic** - Pure TypeScript types, no ORM coupling
-4. **Single Source of Truth** - Defined once in shared, used everywhere
-5. **Future-proof** - Can extract to `@midcurve/api-types` without changes
-
-### Layer Separation
-
-```
-┌─────────────────────────────────────┐
-│     @midcurve/shared (Types)        │  ← Pure types (no dependencies)
-│  - AuthWalletAddress                │
-│  - User, Token, Pool, Position      │
-└─────────────────────────────────────┘
-           ↑ imports          ↑ imports
-           │                  │
-┌──────────┴────────┐  ┌──────┴─────────────┐
-│  @midcurve/api    │  │ @midcurve/services │
-│  (REST endpoints) │  │ (Business logic)   │
-└───────────────────┘  └────────────────────┘
-                              ↓ uses
-                    ┌─────────────────────┐
-                    │  @prisma/client     │
-                    │  (Database layer)   │
-                    └─────────────────────┘
-```
-
-**Services layer** uses both:
-- `@midcurve/shared` types for portable data structures
-- `@prisma/client` types internally for database operations
-- Converts between them when necessary (usually they match exactly)
-
-## Dependencies
-
-### Local Packages (Yalc)
-
-```json
-{
-  "@midcurve/services": "file:.yalc/@midcurve/services",
-  "@midcurve/shared": "file:../midcurve-shared"
-}
-```
-
-- **@midcurve/shared** - Core types (Token, Pool, Position) and utilities (file: reference)
-- **@midcurve/services** - Business logic (TokenService, PoolService, etc.) (yalc managed)
-
-**Why yalc for services?**
-- Services declares `@prisma/client` as a peer dependency
-- Yalc's copy mechanism ensures services uses API's Prisma client (no duplication)
-- Verifies correct packaging before consumption
-- Consistent with how services consumes shared
-
-**Development workflow:**
-```bash
-# In services repo after making changes:
-cd ../midcurve-services
-npm run yalc:push  # Builds and updates all consumers
-
-# In API repo:
-npm run yalc:update  # Pull latest from yalc store
-```
-
-### External Dependencies
-
-- **next@^15.5.0** - Framework (serverless functions)
-- **react@^19.0.0** - Required by Next.js
-- **zod@^3.22.0** - Runtime validation + type inference
-- **typescript@^5.3.3** - Strict type checking
-
-### Future Dependencies
-
-- **next-auth@^5.0.0** - Authentication
-- **pino@^10.0.0** - Logging
-- **@vercel/kv** - Rate limiting (Vercel KV)
+---
 
 ## Standard Response Format
 
-All endpoints return consistent JSON:
+All endpoints return consistent JSON following these patterns:
 
 **Success:**
 ```typescript
@@ -282,6 +188,8 @@ All endpoints return consistent JSON:
   meta?: { ... }
 }
 ```
+
+---
 
 ## Development Workflow
 
@@ -352,72 +260,69 @@ const params = SearchParamsSchema.parse(queryParams);
 // TypeScript knows: params is { query: string, chain: 'ethereum' | ..., limit: number }
 ```
 
-## Environment Variables
+---
 
-Required:
-- `DATABASE_URL` - PostgreSQL connection (shared with services)
-- `NODE_ENV` - Environment (development/production)
+## Environment Variables (API-Specific)
 
-Optional:
-- `RPC_URL_*` - EVM chain RPC endpoints (inherited from services)
-- `COINGECKO_API_KEY` - Token enrichment
-- `NEXTAUTH_SECRET` - Authentication secret
-- `KV_*` - Vercel KV for rate limiting
+### Required
+
+```bash
+DATABASE_URL="postgresql://user:password@localhost:5432/midcurve"
+NODE_ENV="development"
+NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_SECRET="your-secret-here"  # Generate with: openssl rand -base64 32
+```
+
+### Optional
+
+```bash
+# EVM Chain RPCs (inherited from services)
+RPC_URL_ETHEREUM="https://eth-mainnet.g.alchemy.com/v2/YOUR_API_KEY"
+RPC_URL_ARBITRUM="https://arb-mainnet.g.alchemy.com/v2/YOUR_API_KEY"
+RPC_URL_BASE="https://base-mainnet.g.alchemy.com/v2/YOUR_API_KEY"
+RPC_URL_BSC="https://bsc-dataseed1.binance.org"
+RPC_URL_POLYGON="https://polygon-mainnet.g.alchemy.com/v2/YOUR_API_KEY"
+RPC_URL_OPTIMISM="https://opt-mainnet.g.alchemy.com/v2/YOUR_API_KEY"
+
+# Token enrichment
+COINGECKO_API_KEY="your-coingecko-key"
+
+# Rate limiting (future)
+KV_REST_API_URL="your-vercel-kv-url"
+KV_REST_API_TOKEN="your-vercel-kv-token"
+```
+
+For complete environment setup including RPC configuration, see:
+**[Development Setup](../CLAUDE.md#development-setup)**
+
+---
 
 ## Deployment (Vercel)
 
-**Automatic:**
-1. Push to GitHub
-2. Vercel deploys automatically
-3. Serverless functions created for each route
+### Automatic Deployment
 
-**Manual:**
+1. Connect GitHub repository to Vercel
+2. Configure environment variables in Vercel dashboard
+3. Push to `main` branch → automatic deploy
+
+### Manual Deployment
+
 ```bash
 npm run build
 vercel --prod
 ```
 
-**Configuration:**
-- Region: `iad1` (US East)
-- Max Duration: 10 seconds
-- Memory: 1024 MB
-- See [vercel.json](vercel.json) for full config
+### Serverless Configuration
 
-## Code Style
+- **Region:** `iad1` (US East)
+- **Max Duration:** 10 seconds
+- **Memory:** 1024 MB
+- **Config:** See [vercel.json](vercel.json)
 
-- **TypeScript strict mode** - All code strictly typed
-- **ESM modules** - import/export (no require)
-- **Async/await** - No callbacks
-- **Error handling** - Try/catch with standardized error responses
-- **Path aliases** - `@/` for src directory
+For production deployment considerations, see:
+**[Deployment Section](../CLAUDE.md#deployment)**
 
-## Future Roadmap
-
-**Phase 1: Foundation** ✅
-- Project structure
-- Type system
-- Health endpoint
-
-**Phase 2: Core Endpoints** (Next)
-- Token endpoints (search, create, enrich)
-- Pool endpoints (discover, get pool data)
-- Position endpoints (list, discover, import)
-
-**Phase 3: Advanced Features**
-- Authentication middleware (NextAuth + API keys)
-- Logging middleware (Pino)
-- Rate limiting (Vercel KV)
-
-**Phase 4: Type Extraction**
-- Extract `src/types/` to `@midcurve/api-types`
-- Publish to npm
-- Frontend imports types directly
-
-## Related Documentation
-
-- **Business Logic**: See [midcurve-services/CLAUDE.md](../midcurve-services/CLAUDE.md)
-- **Shared Types**: See [midcurve-shared/README.md](../midcurve-shared/README.md)
-- **API Documentation**: See [README.md](README.md)
+---
 
 ## Development Commands
 
@@ -433,13 +338,120 @@ npm run build            # Production build
 
 # Linting
 npm run lint             # ESLint
+
+# Prisma
+npm run prisma:generate  # Sync schema from services + generate client
+npm run prisma:sync      # Sync schema only (no generate)
+
+# Yalc (local package management)
+npm run yalc:link:services  # Link services via yalc
+npm run yalc:update         # Update services from yalc store
 ```
 
-## Key Principles
+---
 
-1. **Thin API layer** - Delegate to services, don't duplicate logic
-2. **Type safety** - Zod validation + TypeScript
-3. **Endpoint-based types** - Organize by endpoint, not by kind
-4. **Consistent responses** - Standard format everywhere
-5. **Stateless** - Each request independent (serverless-friendly)
-6. **Fail fast** - Validate early, return clear errors
+## Dependencies
+
+### Local Packages
+
+```json
+{
+  "@midcurve/services": "file:.yalc/@midcurve/services",
+  "@midcurve/shared": "file:../midcurve-shared",
+  "@prisma/client": "^6.17.1"
+}
+```
+
+Services is consumed via **yalc** to ensure peer dependency resolution works correctly with Prisma. For the complete yalc workflow, see:
+**[Local Package Management with Yalc](../CLAUDE.md#3-local-package-management-with-yalc)**
+
+**Quick yalc workflow:**
+```bash
+# In services repo after changes:
+cd ../midcurve-services
+npm run yalc:push  # Builds and updates all consumers
+
+# In API repo (changes auto-detected or):
+npm run yalc:update
+```
+
+### External Dependencies
+
+- **next@^15.5.0** - Framework (serverless functions)
+- **react@^19.0.0** - Required by Next.js
+- **zod@^3.22.0** - Runtime validation + type inference
+- **typescript@^5.3.3** - Strict type checking
+- **next-auth@^5.0.0** - Authentication framework
+
+---
+
+## Key Principles (API-Specific)
+
+1. **Thin API layer** - Delegate to services, don't duplicate business logic
+2. **Type safety** - Zod validation at runtime + TypeScript at compile time
+3. **Endpoint-based types** - Organize by endpoint for clarity and future extraction
+4. **Consistent responses** - Standard JSON format across all endpoints
+5. **Stateless** - Each request independent (serverless-friendly, no session state)
+6. **Fail fast** - Validate early, return clear errors with standardized codes
+
+For general code style and principles shared across the monorepo, see:
+**[Code Style & Best Practices](../CLAUDE.md#code-style--best-practices)**
+
+---
+
+## Authentication
+
+The API implements dual authentication:
+- **Session-based (JWT)** - For UI/frontend users via SIWE
+- **API keys** - For programmatic access
+
+Authentication handled by the `withAuth` middleware which checks API keys first, then falls back to session validation.
+
+For complete authentication architecture and SIWE implementation details, see:
+**[Authentication Architecture](../CLAUDE.md#6-authentication-architecture)**
+
+---
+
+## Roadmap
+
+For the complete project roadmap across all packages, see:
+**[Project Roadmap](../CLAUDE.md#project-roadmap)**
+
+### API-Specific Upcoming Work
+
+**Phase 2: Core Endpoints** (Current)
+- Token endpoints (search, create, enrich)
+- Pool endpoints (discover, get pool data)
+- Position endpoints (list, discover, import)
+
+**Phase 3: Advanced Features**
+- Logging middleware (Pino)
+- Rate limiting (Vercel KV)
+- Error tracking (Sentry)
+
+**Phase 4: Type Extraction**
+- Extract `src/types/` to `@midcurve/api-types`
+- Publish to npm for frontend consumption
+
+---
+
+## Related Documentation
+
+### Monorepo Documentation
+- **[Central CLAUDE.md](../CLAUDE.md)** - Architecture, philosophy, ecosystem overview
+- **[Services CLAUDE.md](../midcurve-services/CLAUDE.md)** - Business logic implementation
+- **[Shared README.md](../midcurve-shared/README.md)** - Type definitions and utilities
+
+### API Documentation
+- **[README.md](README.md)** - User-facing API documentation
+
+---
+
+## Contributing
+
+For contributing guidelines, git workflow, and commit message format, see:
+**[Contributing Section](../CLAUDE.md#contributing)**
+
+---
+
+**Midcurve Finance** - Professional risk management for concentrated liquidity providers
