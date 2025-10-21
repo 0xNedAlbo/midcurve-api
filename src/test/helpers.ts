@@ -47,6 +47,23 @@ export const TEST_WALLET_SECONDARY_ADDRESS = '0xABCDEF1234567890ABCDEF1234567890
  */
 export const API_BASE_URL = process.env.AUTH_URL || 'http://localhost:3000';
 
+/**
+ * Well-known token addresses for testing token endpoints
+ */
+export const TEST_TOKENS = {
+  /**
+   * USDC on Ethereum mainnet
+   * - Listed on CoinGecko with full data
+   * - Reliable for testing token discovery and search
+   */
+  USDC_ETHEREUM: {
+    address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+    chainId: 1,
+    symbol: 'USDC',
+    name: 'USD Coin',
+  },
+} as const;
+
 // ============================================================================
 // Database Utilities
 // ============================================================================
@@ -150,6 +167,25 @@ export async function authenticatedPost(
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+}
+
+/**
+ * Make an unauthenticated POST request to an API endpoint
+ *
+ * @param endpoint - API endpoint path
+ * @param body - Request body (will be JSON stringified)
+ * @returns Response object
+ */
+export async function unauthenticatedPost(endpoint: string, body: unknown): Promise<Response> {
+  const url = `${API_BASE_URL}${endpoint}`;
+
+  return fetch(url, {
+    method: 'POST',
+    headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(body),

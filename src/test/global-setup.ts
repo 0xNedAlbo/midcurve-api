@@ -40,6 +40,7 @@ async function warmUpCoinGeckoCache(): Promise<void> {
 
     // Check if cache is already warm by checking individual coin detail caches
     console.log('  🔍 Checking if cache is already warm...');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const cacheService = (client as any).cacheService; // Access private field
     const cachedCoins = await Promise.all(
       TEST_COIN_IDS.map((coinId) => cacheService.get(`coingecko:coin:${coinId}`))
