@@ -7,7 +7,7 @@ export default defineConfig({
     environment: 'node',
 
     // E2E tests - test API endpoints end-to-end
-    // Note: Environment variables loaded from .env.test via --env-file flag (see package.json)
+    // Note: Environment variables loaded from .env (Prisma convention)
     name: 'e2e',
     include: ['src/**/*.e2e.test.{js,ts}'],
     exclude: ['node_modules', 'dist', '.next'],
@@ -23,7 +23,7 @@ export default defineConfig({
     // Global setup: database schema push + seeding
     globalSetup: './src/test/global-setup.ts',
 
-    // Override specific env vars (others loaded from .env.test)
+    // Override specific env vars (others loaded from .env)
     env: {
       NODE_ENV: 'test',
       LOG_LEVEL: 'silent',

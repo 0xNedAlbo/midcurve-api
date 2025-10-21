@@ -14,13 +14,13 @@ import { PrismaClient } from '@prisma/client';
 export default async function globalSetup() {
   console.log('\n🔧 Setting up E2E test environment...\n');
 
-  // DATABASE_URL should be loaded from .env.test via --env-file flag
+  // DATABASE_URL should be loaded from .env (Prisma convention)
   const databaseUrl = process.env.DATABASE_URL;
 
   if (!databaseUrl) {
     throw new Error(
-      'DATABASE_URL is not set. Make sure .env.test exists with DATABASE_URL defined.\n' +
-      'Run: cp .env.test.example .env.test'
+      'DATABASE_URL is not set. Make sure .env exists with DATABASE_URL defined.\n' +
+      'Point DATABASE_URL to the test database for running tests.'
     );
   }
 

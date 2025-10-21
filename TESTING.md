@@ -29,13 +29,16 @@ This creates a PostgreSQL database with:
 - Password: `testpass`
 - Port: `5434`
 
-#### 2. Verify Environment Configuration
+#### 2. Configure Environment for Testing
 
-The `.env.test` file should already exist. If not, copy from the example:
+Update your `.env` file to point `DATABASE_URL` to the test database:
 
 ```bash
-cp .env.test.example .env.test
+# .env
+DATABASE_URL="postgresql://testuser:testpass@localhost:5434/midcurve_api_test?schema=public"
 ```
+
+**Note:** When running tests, make sure `DATABASE_URL` points to the **test database** (port 5434), not your development database.
 
 ### Running E2E Tests
 
