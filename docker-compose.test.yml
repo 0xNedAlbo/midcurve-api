@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  postgres-test:
+    image: postgres:16-alpine
+    container_name: midcurve-api-test-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: testuser
+      POSTGRES_PASSWORD: testpass
+      POSTGRES_DB: midcurve_api_test
+    ports:
+      - '5434:5432'
+    volumes:
+      - postgres-api-test-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U testuser -d midcurve_api_test']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres-api-test-data:
