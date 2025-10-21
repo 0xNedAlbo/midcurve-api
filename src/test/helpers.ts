@@ -22,9 +22,24 @@ export const TEST_API_KEY = 'mc_test_1234567890abcdefghijklmnopqrstuvwxyz';
 export const TEST_USER_ID = 'test-user-api-e2e';
 
 /**
- * Test wallet address (seeded in global setup)
+ * Test wallet ID (primary wallet, seeded in global setup)
+ */
+export const TEST_WALLET_ID = 'test-wallet-api-e2e';
+
+/**
+ * Test wallet address (primary wallet, seeded in global setup)
  */
 export const TEST_WALLET_ADDRESS = '0x1234567890123456789012345678901234567890';
+
+/**
+ * Secondary test wallet ID (non-primary, seeded in global setup)
+ */
+export const TEST_WALLET_SECONDARY_ID = 'test-wallet-secondary-api-e2e';
+
+/**
+ * Secondary test wallet address (non-primary, seeded in global setup)
+ */
+export const TEST_WALLET_SECONDARY_ADDRESS = '0xABCDEF1234567890ABCDEF1234567890ABCDEF12';
 
 /**
  * Base URL for API requests
@@ -138,6 +153,99 @@ export async function authenticatedPost(
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(body),
+  });
+}
+
+/**
+ * Make an authenticated PATCH request to an API endpoint
+ *
+ * @param endpoint - API endpoint path
+ * @param body - Optional request body (will be JSON stringified)
+ * @param apiKey - Optional API key (defaults to TEST_API_KEY)
+ * @returns Response object
+ */
+export async function authenticatedPatch(
+  endpoint: string,
+  body?: unknown,
+  apiKey: string = TEST_API_KEY
+): Promise<Response> {
+  const url = `${API_BASE_URL}${endpoint}`;
+
+  const options: RequestInit = {
+    method: 'PATCH',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+  };
+
+  if (body !== undefined) {
+    options.body = JSON.stringify(body);
+  }
+
+  return fetch(url, options);
+}
+
+/**
+ * Make an authenticated DELETE request to an API endpoint
+ *
+ * @param endpoint - API endpoint path
+ * @param apiKey - Optional API key (defaults to TEST_API_KEY)
+ * @returns Response object
+ */
+export async function authenticatedDelete(
+  endpoint: string,
+  apiKey: string = TEST_API_KEY
+): Promise<Response> {
+  const url = `${API_BASE_URL}${endpoint}`;
+
+  return fetch(url, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+  });
+}
+
+/**
+ * Make an unauthenticated PATCH request to an API endpoint
+ *
+ * @param endpoint - API endpoint path
+ * @param body - Optional request body (will be JSON stringified)
+ * @returns Response object
+ */
+export async function unauthenticatedPatch(endpoint: string, body?: unknown): Promise<Response> {
+  const url = `${API_BASE_URL}${endpoint}`;
+
+  const options: RequestInit = {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  };
+
+  if (body !== undefined) {
+    options.body = JSON.stringify(body);
+  }
+
+  return fetch(url, options);
+}
+
+/**
+ * Make an unauthenticated DELETE request to an API endpoint
+ *
+ * @param endpoint - API endpoint path
+ * @returns Response object
+ */
+export async function unauthenticatedDelete(endpoint: string): Promise<Response> {
+  const url = `${API_BASE_URL}${endpoint}`;
+
+  return fetch(url, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+    },
   });
 }
 
