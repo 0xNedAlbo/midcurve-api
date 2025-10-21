@@ -30,6 +30,7 @@ import {
   ApiErrorCode,
   ErrorCodeToHttpStatus,
 } from '@/types/common';
+import { apiLogger, apiLog } from '@/lib/logger';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -40,16 +41,23 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ): Promise<Response> {
-  return withAuth(request, async (user) => {
+  return withAuth(request, async (user, requestId) => {
+    const startTime = Date.now();
+
     try {
       const { id: walletId } = await params;
 
       // Validate wallet ID
       if (!walletId || typeof walletId !== 'string') {
+        apiLog.validationError(apiLogger, requestId, { walletId });
+
         const errorResponse = createErrorResponse(
           ApiErrorCode.VALIDATION_ERROR,
           'Invalid wallet ID'
         );
+
+        apiLog.requestEnd(apiLogger, requestId, 400, Date.now() - startTime);
+
         return NextResponse.json(errorResponse, {
           status: ErrorCodeToHttpStatus[ApiErrorCode.VALIDATION_ERROR],
         });
@@ -59,6 +67,11 @@ export async function PATCH(
       try {
         const wallet = await userService.setPrimaryWallet(user.id, walletId);
 
+        apiLog.businessOperation(apiLogger, requestId, 'set-primary', 'wallet', wallet.id, {
+          userId: user.id,
+          address: wallet.address.slice(0, 10) + '...',
+        });
+
         const response = createSuccessResponse({
           id: wallet.id,
           address: wallet.address,
@@ -67,16 +80,32 @@ export async function PATCH(
           createdAt: wallet.createdAt.toISOString(),
         });
 
+        apiLog.requestEnd(apiLogger, requestId, 200, Date.now() - startTime);
+
         return NextResponse.json(response, { status: 200 });
       } catch (error) {
         // Check if wallet not found or doesn't belong to user
         if (error instanceof Error) {
           if (error.message.includes('not found') || error.message.includes('does not belong')) {
+            apiLog.methodError(
+              apiLogger,
+              'PATCH /api/v1/user/wallets/[id]/primary',
+              error,
+              {
+                requestId,
+                userId: user.id,
+                walletId,
+              }
+            );
+
             const errorResponse = createErrorResponse(
               ApiErrorCode.WALLET_NOT_FOUND,
               'Wallet not found or does not belong to user',
               { walletId }
             );
+
+            apiLog.requestEnd(apiLogger, requestId, 404, Date.now() - startTime);
+
             return NextResponse.json(errorResponse, {
               status: ErrorCodeToHttpStatus[ApiErrorCode.WALLET_NOT_FOUND],
             });
@@ -85,13 +114,18 @@ export async function PATCH(
         throw error; // Re-throw unexpected errors
       }
     } catch (error) {
-      console.error('Set primary wallet error:', error);
+      apiLog.methodError(apiLogger, 'PATCH /api/v1/user/wallets/[id]/primary', error, {
+        requestId,
+        userId: user.id,
+      });
 
       const errorResponse = createErrorResponse(
         ApiErrorCode.INTERNAL_SERVER_ERROR,
         'Failed to set primary wallet',
         error instanceof Error ? error.message : String(error)
       );
+
+      apiLog.requestEnd(apiLogger, requestId, 500, Date.now() - startTime);
 
       return NextResponse.json(errorResponse, {
         status: ErrorCodeToHttpStatus[ApiErrorCode.INTERNAL_SERVER_ERROR],

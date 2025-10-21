@@ -33,6 +33,7 @@ import {
   ApiErrorCode,
   ErrorCodeToHttpStatus,
 } from '@/types/common';
+import { apiLogger, apiLog } from '@/lib/logger';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -40,12 +41,16 @@ export const dynamic = 'force-dynamic';
 const userService = new AuthUserService();
 
 export async function GET(request: NextRequest): Promise<Response> {
-  return withAuth(request, async (user) => {
+  return withAuth(request, async (user, requestId) => {
+    const startTime = Date.now();
+
     try {
       // Fetch user's wallets (ordered by isPrimary desc, then createdAt asc)
       const wallets = await userService.getUserWallets(user.id);
 
       const response = createSuccessResponse(wallets);
+
+      apiLog.requestEnd(apiLogger, requestId, 200, Date.now() - startTime);
 
       return NextResponse.json(response, {
         status: 200,
@@ -54,13 +59,18 @@ export async function GET(request: NextRequest): Promise<Response> {
         },
       });
     } catch (error) {
-      console.error('List wallets error:', error);
+      apiLog.methodError(apiLogger, 'GET /api/v1/user/wallets', error, {
+        requestId,
+        userId: user.id,
+      });
 
       const errorResponse = createErrorResponse(
         ApiErrorCode.INTERNAL_SERVER_ERROR,
         'Failed to retrieve wallets',
         error instanceof Error ? error.message : String(error)
       );
+
+      apiLog.requestEnd(apiLogger, requestId, 500, Date.now() - startTime);
 
       return NextResponse.json(errorResponse, {
         status: ErrorCodeToHttpStatus[ApiErrorCode.INTERNAL_SERVER_ERROR],

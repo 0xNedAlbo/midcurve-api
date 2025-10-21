@@ -91,7 +91,8 @@ midcurve-api/
 │   │   └── positions/        # Position endpoint types (future)
 │   │
 │   ├── lib/                  # Libraries
-│   │   └── auth.ts           # Auth.js configuration
+│   │   ├── auth.ts           # Auth.js configuration
+│   │   └── logger.ts         # Logging utilities (Pino from services)
 │   │
 │   ├── middleware/           # API middleware
 │   │   └── with-auth.ts      # Authentication (session + API key)
@@ -191,6 +192,159 @@ All endpoints return consistent JSON following these patterns:
 
 ---
 
+## Logging Infrastructure
+
+The API uses structured JSON logging via **Pino** from `@midcurve/services`. All logging utilities are shared across the entire Midcurve ecosystem for consistency.
+
+### Logger Setup
+
+**Import from lib:**
+```typescript
+import { apiLogger, apiLog } from '@/lib/logger';
+import { nanoid } from 'nanoid';
+```
+
+**Request ID Pattern:**
+Every request should generate a unique `requestId` for tracing:
+```typescript
+export async function GET(request: NextRequest) {
+  const requestId = nanoid();
+  const startTime = Date.now();
+
+  apiLog.requestStart(apiLogger, requestId, request);
+
+  try {
+    // ... handler logic
+
+    apiLog.requestEnd(apiLogger, requestId, 200, Date.now() - startTime);
+    return response;
+  } catch (error) {
+    apiLog.methodError(apiLogger, 'GET /api/endpoint', error, { requestId });
+    apiLog.requestEnd(apiLogger, requestId, 500, Date.now() - startTime);
+    return errorResponse;
+  }
+}
+```
+
+### Available Logging Patterns
+
+The `apiLog` object provides common logging patterns:
+
+**1. Request Logging:**
+```typescript
+apiLog.requestStart(apiLogger, requestId, request);
+apiLog.requestEnd(apiLogger, requestId, statusCode, durationMs);
+```
+
+**2. Authentication:**
+```typescript
+apiLog.authSuccess(apiLogger, requestId, userId, 'session');
+apiLog.authSuccess(apiLogger, requestId, userId, 'api_key', apiKeyPrefix);
+apiLog.authFailure(apiLogger, requestId, 'Invalid API key', 'api_key');
+```
+
+**3. Validation:**
+```typescript
+apiLog.validationError(apiLogger, requestId, validationErrors);
+```
+
+**4. Business Operations:**
+```typescript
+apiLog.businessOperation(
+  apiLogger,
+  requestId,
+  'discovered',      // operation
+  'erc20-token',     // resourceType
+  token.id,          // resourceId
+  { symbol: 'USDC', chainId: 1 }  // metadata
+);
+```
+
+**5. Errors:**
+```typescript
+apiLog.methodError(apiLogger, 'POST /api/v1/tokens', error, {
+  requestId,
+  userId,
+  additionalContext: 'value'
+});
+```
+
+**6. Service Patterns (re-exported from services):**
+```typescript
+apiLog.dbOperation(apiLogger, 'create', 'Token', { address, chainId });
+apiLog.cacheHit(apiLogger, 'getToken', cacheKey);
+apiLog.cacheMiss(apiLogger, 'getToken', cacheKey);
+apiLog.externalApiCall(apiLogger, 'CoinGecko', '/coins/list', { chainId });
+```
+
+### Authenticated Route Logging
+
+For routes using `withAuth`, the middleware automatically provides the `requestId`:
+
+```typescript
+export async function POST(request: NextRequest): Promise<Response> {
+  return withAuth(request, async (user, requestId) => {
+    const startTime = Date.now();
+
+    // requestId is already available from middleware
+    // Auth logging already done by middleware
+
+    try {
+      // ... business logic
+
+      apiLog.requestEnd(apiLogger, requestId, 200, Date.now() - startTime);
+      return response;
+    } catch (error) {
+      apiLog.methodError(apiLogger, 'POST /api/endpoint', error, {
+        requestId,
+        userId: user.id
+      });
+      apiLog.requestEnd(apiLogger, requestId, 500, Date.now() - startTime);
+      return errorResponse;
+    }
+  });
+}
+```
+
+### Log Levels
+
+Configure via `LOG_LEVEL` environment variable:
+
+- `debug` - All logs (verbose, for development)
+- `info` - Informational + warnings + errors (default production)
+- `warn` - Warnings + errors only
+- `error` - Errors only
+- `silent` - No logs (used in tests)
+
+**Default behavior** (from `@midcurve/services`):
+- Development: `debug`
+- Production: `info`
+- Test: `silent`
+
+### Security: Sensitive Data Sanitization
+
+The logger automatically redacts sensitive information:
+
+**Headers:**
+- `Authorization` → `[REDACTED]`
+- `Cookie` → `[REDACTED]`
+- `Set-Cookie` → `[REDACTED]`
+- `X-API-Key` → `[REDACTED]`
+
+**Addresses:**
+Always truncate wallet addresses in logs:
+```typescript
+address: wallet.address.slice(0, 10) + '...',  // 0xA0b86991...
+```
+
+**API Keys:**
+Only log prefixes:
+```typescript
+apiKeyPrefix: apiKey.slice(0, 10),  // mc_1234567...
+```
+
+---
+
 ## Development Workflow
 
 ### Adding a New Endpoint
@@ -207,15 +361,33 @@ All endpoints return consistent JSON following these patterns:
 
 2. **Create route** in `src/app/api/v1/{endpoint}/route.ts`
    ```typescript
+   import { apiLogger, apiLog } from '@/lib/logger';
+   import { nanoid } from 'nanoid';
+
    export async function POST(request: NextRequest) {
-     // 1. Parse/validate request
-     const body = CreateTokenRequestSchema.parse(await request.json());
+     const requestId = nanoid();
+     const startTime = Date.now();
 
-     // 2. Call service
-     const token = await tokenService.create(body);
+     apiLog.requestStart(apiLogger, requestId, request);
 
-     // 3. Return response
-     return NextResponse.json(createSuccessResponse(token));
+     try {
+       // 1. Parse/validate request
+       const body = CreateTokenRequestSchema.parse(await request.json());
+
+       // 2. Call service
+       const token = await tokenService.create(body);
+
+       // 3. Log business operation
+       apiLog.businessOperation(apiLogger, requestId, 'created', 'token', token.id);
+
+       // 4. Return response
+       apiLog.requestEnd(apiLogger, requestId, 200, Date.now() - startTime);
+       return NextResponse.json(createSuccessResponse(token));
+     } catch (error) {
+       apiLog.methodError(apiLogger, 'POST /api/v1/tokens', error, { requestId });
+       apiLog.requestEnd(apiLogger, requestId, 500, Date.now() - startTime);
+       return NextResponse.json(createErrorResponse(...));
+     }
    }
    ```
 

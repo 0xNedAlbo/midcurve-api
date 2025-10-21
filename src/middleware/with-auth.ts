@@ -17,10 +17,12 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { nanoid } from 'nanoid';
 import { auth } from '@/lib/auth';
 import { AuthApiKeyService, AuthUserService } from '@midcurve/services';
 import { createErrorResponse, ApiErrorCode, ErrorCodeToHttpStatus } from '@/types/common';
 import type { AuthenticatedUser } from '@/types/auth';
+import { apiLogger, apiLog } from '@/lib/logger';
 
 const apiKeyService = new AuthApiKeyService();
 const userService = new AuthUserService();
@@ -34,17 +36,21 @@ const userService = new AuthUserService();
  */
 export async function withAuth(
   request: NextRequest,
-  handler: (user: AuthenticatedUser) => Promise<Response>
+  handler: (user: AuthenticatedUser, requestId: string) => Promise<Response>
 ): Promise<Response> {
+  const requestId = nanoid();
+
   // 1. Check for API key in Authorization header
   const authHeader = request.headers.get('authorization');
   const apiKey = authHeader?.replace('Bearer ', '').trim();
 
   if (apiKey && apiKey.startsWith('mc_')) {
-    const user = await validateApiKey(apiKey);
+    const user = await validateApiKey(apiKey, requestId);
     if (user) {
-      return handler(user);
+      apiLog.authSuccess(apiLogger, requestId, user.id, 'api_key', apiKey.slice(0, 10));
+      return handler(user, requestId);
     }
+    apiLog.authFailure(apiLogger, requestId, 'Invalid API key', 'api_key');
   }
 
   // 2. Check for session (Auth.js JWT)
@@ -57,10 +63,13 @@ export async function withAuth(
       image: session.user.image,
       wallets: session.user.wallets,
     };
-    return handler(user);
+    apiLog.authSuccess(apiLogger, requestId, user.id, 'session');
+    return handler(user, requestId);
   }
 
   // 3. Unauthorized
+  apiLog.authFailure(apiLogger, requestId, 'No valid session or API key provided');
+
   const errorResponse = createErrorResponse(
     ApiErrorCode.UNAUTHORIZED,
     'Authentication required. Provide a valid session or API key.'
@@ -75,26 +84,46 @@ export async function withAuth(
  * Validate API key and return associated user
  *
  * @param key - API key from Authorization header
+ * @param requestId - Request ID for logging
  * @returns Authenticated user or null if invalid
  */
-async function validateApiKey(key: string): Promise<AuthenticatedUser | null> {
+async function validateApiKey(
+  key: string,
+  requestId: string
+): Promise<AuthenticatedUser | null> {
   try {
     // Validate API key and get record
     const apiKeyRecord = await apiKeyService.validateApiKey(key);
 
     if (!apiKeyRecord) {
+      apiLog.methodError(apiLogger, 'validateApiKey', new Error('API key not found'), {
+        requestId,
+        keyPrefix: key.slice(0, 10),
+      });
       return null;
     }
 
     // Update last used timestamp (fire-and-forget)
-    apiKeyService
-      .updateLastUsed(apiKeyRecord.id)
-      .catch((err) => console.error('Failed to update API key lastUsed:', err));
+    apiKeyService.updateLastUsed(apiKeyRecord.id).catch((err) => {
+      apiLog.methodError(apiLogger, 'updateLastUsed', err, {
+        requestId,
+        apiKeyId: apiKeyRecord.id,
+      });
+    });
 
     // Fetch user
     const user = await userService.findUserById(apiKeyRecord.userId);
 
     if (!user) {
+      apiLog.methodError(
+        apiLogger,
+        'validateApiKey',
+        new Error('User not found for API key'),
+        {
+          requestId,
+          userId: apiKeyRecord.userId,
+        }
+      );
       return null;
     }
 
@@ -110,7 +139,7 @@ async function validateApiKey(key: string): Promise<AuthenticatedUser | null> {
       wallets: wallets || [],
     };
   } catch (error) {
-    console.error('API key validation error:', error);
+    apiLog.methodError(apiLogger, 'validateApiKey', error, { requestId });
     return null;
   }
 }

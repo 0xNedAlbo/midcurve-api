@@ -10,6 +10,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { nanoid } from 'nanoid';
 import { auth } from '@/lib/auth';
 import { AuthApiKeyService } from '@midcurve/services';
 import {
@@ -18,9 +19,8 @@ import {
   ApiErrorCode,
   ErrorCodeToHttpStatus,
 } from '@/types/common';
-import {
-  CreateApiKeyRequestSchema,
-} from '@/types/auth';
+import { CreateApiKeyRequestSchema } from '@/types/auth';
+import { apiLogger, apiLog } from '@/lib/logger';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -32,14 +32,24 @@ const apiKeyService = new AuthApiKeyService();
  *
  * List all API keys for the authenticated user (prefixes only, no full keys).
  */
-export async function GET(_request: NextRequest): Promise<NextResponse> {
+export async function GET(request: NextRequest): Promise<NextResponse> {
+  const requestId = nanoid();
+  const startTime = Date.now();
+
+  apiLog.requestStart(apiLogger, requestId, request);
+
   // Session auth only (not API keys)
   const session = await auth();
   if (!session?.user?.id) {
+    apiLog.authFailure(apiLogger, requestId, 'Session authentication required');
+
     const errorResponse = createErrorResponse(
       ApiErrorCode.UNAUTHORIZED,
       'Session authentication required'
     );
+
+    apiLog.requestEnd(apiLogger, requestId, 401, Date.now() - startTime);
+
     return NextResponse.json(errorResponse, {
       status: ErrorCodeToHttpStatus[ApiErrorCode.UNAUTHORIZED],
     });
@@ -61,6 +71,8 @@ export async function GET(_request: NextRequest): Promise<NextResponse> {
 
     const response = createSuccessResponse(apiKeysFormatted);
 
+    apiLog.requestEnd(apiLogger, requestId, 200, Date.now() - startTime);
+
     return NextResponse.json(response, {
       status: 200,
       headers: {
@@ -68,13 +80,18 @@ export async function GET(_request: NextRequest): Promise<NextResponse> {
       },
     });
   } catch (error) {
-    console.error('List API keys error:', error);
+    apiLog.methodError(apiLogger, 'GET /api/v1/user/api-keys', error, {
+      requestId,
+      userId: session.user.id,
+    });
 
     const errorResponse = createErrorResponse(
       ApiErrorCode.INTERNAL_SERVER_ERROR,
       'Failed to retrieve API keys',
       error instanceof Error ? error.message : String(error)
     );
+
+    apiLog.requestEnd(apiLogger, requestId, 500, Date.now() - startTime);
 
     return NextResponse.json(errorResponse, {
       status: ErrorCodeToHttpStatus[ApiErrorCode.INTERNAL_SERVER_ERROR],
@@ -89,13 +106,23 @@ export async function GET(_request: NextRequest): Promise<NextResponse> {
  * Returns the full key ONCE - it cannot be retrieved again.
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  const requestId = nanoid();
+  const startTime = Date.now();
+
+  apiLog.requestStart(apiLogger, requestId, request);
+
   // Session auth only (not API keys)
   const session = await auth();
   if (!session?.user?.id) {
+    apiLog.authFailure(apiLogger, requestId, 'Session authentication required');
+
     const errorResponse = createErrorResponse(
       ApiErrorCode.UNAUTHORIZED,
       'Session authentication required'
     );
+
+    apiLog.requestEnd(apiLogger, requestId, 401, Date.now() - startTime);
+
     return NextResponse.json(errorResponse, {
       status: ErrorCodeToHttpStatus[ApiErrorCode.UNAUTHORIZED],
     });
@@ -107,11 +134,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const validation = CreateApiKeyRequestSchema.safeParse(body);
 
     if (!validation.success) {
+      apiLog.validationError(apiLogger, requestId, validation.error.errors);
+
       const errorResponse = createErrorResponse(
         ApiErrorCode.VALIDATION_ERROR,
         'Invalid request data',
         validation.error.errors
       );
+
+      apiLog.requestEnd(apiLogger, requestId, 400, Date.now() - startTime);
+
       return NextResponse.json(errorResponse, {
         status: ErrorCodeToHttpStatus[ApiErrorCode.VALIDATION_ERROR],
       });
@@ -121,6 +153,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // Create API key
     const { apiKey, key } = await apiKeyService.createApiKey(session.user.id, name);
+
+    apiLog.businessOperation(apiLogger, requestId, 'created', 'api-key', apiKey.id, {
+      userId: session.user.id,
+      keyPrefix: apiKey.keyPrefix,
+      name,
+    });
 
     const response = {
       success: true,
@@ -137,6 +175,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       },
     };
 
+    apiLog.requestEnd(apiLogger, requestId, 201, Date.now() - startTime);
+
     return NextResponse.json(response, {
       status: 201,
       headers: {
@@ -144,13 +184,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       },
     });
   } catch (error) {
-    console.error('Create API key error:', error);
+    apiLog.methodError(apiLogger, 'POST /api/v1/user/api-keys', error, {
+      requestId,
+      userId: session.user.id,
+    });
 
     const errorResponse = createErrorResponse(
       ApiErrorCode.INTERNAL_SERVER_ERROR,
       'Failed to create API key',
       error instanceof Error ? error.message : String(error)
     );
+
+    apiLog.requestEnd(apiLogger, requestId, 500, Date.now() - startTime);
 
     return NextResponse.json(errorResponse, {
       status: ErrorCodeToHttpStatus[ApiErrorCode.INTERNAL_SERVER_ERROR],

@@ -7,13 +7,20 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { nanoid } from 'nanoid';
 import { createSuccessResponse } from '@/types/common';
 import { HealthStatus, type HealthResponse } from '@/types/health';
+import { apiLogger, apiLog } from '@/lib/logger';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-export async function GET(_request: NextRequest): Promise<NextResponse<HealthResponse>> {
+export async function GET(request: NextRequest): Promise<NextResponse<HealthResponse>> {
+  const requestId = nanoid();
+  const startTime = Date.now();
+
+  apiLog.requestStart(apiLogger, requestId, request);
+
   const healthData = {
     status: HealthStatus.HEALTHY,
     timestamp: new Date().toISOString(),
@@ -23,6 +30,8 @@ export async function GET(_request: NextRequest): Promise<NextResponse<HealthRes
   };
 
   const response = createSuccessResponse(healthData);
+
+  apiLog.requestEnd(apiLogger, requestId, 200, Date.now() - startTime);
 
   return NextResponse.json(response, {
     status: 200,

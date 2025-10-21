@@ -39,6 +39,7 @@ import {
   ApiErrorCode,
   ErrorCodeToHttpStatus,
 } from '@/types/common';
+import { apiLogger, apiLog } from '@/lib/logger';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -46,16 +47,25 @@ export const dynamic = 'force-dynamic';
 const userService = new AuthUserService();
 
 export async function GET(request: NextRequest): Promise<Response> {
-  return withAuth(request, async (user) => {
+  return withAuth(request, async (user, requestId) => {
+    const startTime = Date.now();
+
     try {
       // Fetch full user data
       const userData = await userService.findUserById(user.id);
 
       if (!userData) {
-        const errorResponse = createErrorResponse(
-          ApiErrorCode.NOT_FOUND,
-          'User not found'
+        apiLog.methodError(
+          apiLogger,
+          'GET /api/v1/user/me',
+          new Error('User not found'),
+          { requestId, userId: user.id }
         );
+
+        const errorResponse = createErrorResponse(ApiErrorCode.NOT_FOUND, 'User not found');
+
+        apiLog.requestEnd(apiLogger, requestId, 404, Date.now() - startTime);
+
         return NextResponse.json(errorResponse, {
           status: ErrorCodeToHttpStatus[ApiErrorCode.NOT_FOUND],
         });
@@ -74,6 +84,8 @@ export async function GET(request: NextRequest): Promise<Response> {
         updatedAt: userData.updatedAt.toISOString(),
       });
 
+      apiLog.requestEnd(apiLogger, requestId, 200, Date.now() - startTime);
+
       return NextResponse.json(response, {
         status: 200,
         headers: {
@@ -81,13 +93,18 @@ export async function GET(request: NextRequest): Promise<Response> {
         },
       });
     } catch (error) {
-      console.error('Get current user error:', error);
+      apiLog.methodError(apiLogger, 'GET /api/v1/user/me', error, {
+        requestId,
+        userId: user.id,
+      });
 
       const errorResponse = createErrorResponse(
         ApiErrorCode.INTERNAL_SERVER_ERROR,
         'Failed to retrieve user data',
         error instanceof Error ? error.message : String(error)
       );
+
+      apiLog.requestEnd(apiLogger, requestId, 500, Date.now() - startTime);
 
       return NextResponse.json(errorResponse, {
         status: ErrorCodeToHttpStatus[ApiErrorCode.INTERNAL_SERVER_ERROR],

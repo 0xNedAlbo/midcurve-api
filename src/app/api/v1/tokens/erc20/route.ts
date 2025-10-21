@@ -16,6 +16,7 @@ import {
   ErrorCodeToHttpStatus,
 } from '@/types/common';
 import { CreateErc20TokenRequestSchema } from '@/types/tokens';
+import { apiLogger, apiLog } from '@/lib/logger';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -41,18 +42,25 @@ const erc20TokenService = new Erc20TokenService();
  * - Address is normalized to EIP-55 checksum format
  */
 export async function POST(request: NextRequest): Promise<Response> {
-  return withAuth(request, async (_user) => {
+  return withAuth(request, async (_user, requestId) => {
+    const startTime = Date.now();
+
     try {
       // Parse and validate request body
       const body = await request.json();
       const validation = CreateErc20TokenRequestSchema.safeParse(body);
 
       if (!validation.success) {
+        apiLog.validationError(apiLogger, requestId, validation.error.errors);
+
         const errorResponse = createErrorResponse(
           ApiErrorCode.VALIDATION_ERROR,
           'Invalid request data',
           validation.error.errors
         );
+
+        apiLog.requestEnd(apiLogger, requestId, 400, Date.now() - startTime);
+
         return NextResponse.json(errorResponse, {
           status: ErrorCodeToHttpStatus[ApiErrorCode.VALIDATION_ERROR],
         });
@@ -62,6 +70,13 @@ export async function POST(request: NextRequest): Promise<Response> {
 
       // Discover token (handles all logic: validation, on-chain read, enrichment, creation)
       const token = await erc20TokenService.discover({ address, chainId });
+
+      apiLog.businessOperation(apiLogger, requestId, 'discovered', 'erc20-token', token.id, {
+        address: address.slice(0, 10) + '...',
+        chainId,
+        symbol: token.symbol,
+        name: token.name,
+      });
 
       // Convert to API response format
       const response = createSuccessResponse({
@@ -78,9 +93,11 @@ export async function POST(request: NextRequest): Promise<Response> {
         updatedAt: token.updatedAt.toISOString(),
       });
 
+      apiLog.requestEnd(apiLogger, requestId, 200, Date.now() - startTime);
+
       return NextResponse.json(response, { status: 200 });
     } catch (error) {
-      console.error('Discover ERC-20 token error:', error);
+      apiLog.methodError(apiLogger, 'POST /api/v1/tokens/erc20', error, { requestId });
 
       // Map service errors to API error codes
       if (error instanceof Error) {
@@ -90,6 +107,9 @@ export async function POST(request: NextRequest): Promise<Response> {
             'Invalid Ethereum address format',
             error.message
           );
+
+          apiLog.requestEnd(apiLogger, requestId, 400, Date.now() - startTime);
+
           return NextResponse.json(errorResponse, {
             status: ErrorCodeToHttpStatus[ApiErrorCode.INVALID_ADDRESS],
           });
@@ -101,6 +121,9 @@ export async function POST(request: NextRequest): Promise<Response> {
             'Chain not supported',
             error.message
           );
+
+          apiLog.requestEnd(apiLogger, requestId, 400, Date.now() - startTime);
+
           return NextResponse.json(errorResponse, {
             status: ErrorCodeToHttpStatus[ApiErrorCode.CHAIN_NOT_SUPPORTED],
           });
@@ -115,6 +138,9 @@ export async function POST(request: NextRequest): Promise<Response> {
             'Contract does not implement ERC-20 interface',
             error.message
           );
+
+          apiLog.requestEnd(apiLogger, requestId, 400, Date.now() - startTime);
+
           return NextResponse.json(errorResponse, {
             status: ErrorCodeToHttpStatus[ApiErrorCode.BAD_REQUEST],
           });
@@ -127,6 +153,9 @@ export async function POST(request: NextRequest): Promise<Response> {
             'Token not found on CoinGecko or enrichment failed',
             error.message
           );
+
+          apiLog.requestEnd(apiLogger, requestId, 404, Date.now() - startTime);
+
           return NextResponse.json(errorResponse, {
             status: ErrorCodeToHttpStatus[ApiErrorCode.TOKEN_NOT_FOUND],
           });
@@ -139,6 +168,9 @@ export async function POST(request: NextRequest): Promise<Response> {
         'Failed to discover token',
         error instanceof Error ? error.message : String(error)
       );
+
+      apiLog.requestEnd(apiLogger, requestId, 500, Date.now() - startTime);
+
       return NextResponse.json(errorResponse, {
         status: ErrorCodeToHttpStatus[ApiErrorCode.INTERNAL_SERVER_ERROR],
       });

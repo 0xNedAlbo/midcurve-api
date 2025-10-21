@@ -16,6 +16,7 @@ import {
   ErrorCodeToHttpStatus,
 } from '@/types/common';
 import { SearchErc20TokensQuerySchema } from '@/types/tokens';
+import { apiLogger, apiLog } from '@/lib/logger';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -49,7 +50,9 @@ const erc20TokenService = new Erc20TokenService();
  * the address and chainId from the search result.
  */
 export async function GET(request: NextRequest): Promise<Response> {
-  return withAuth(request, async (_user) => {
+  return withAuth(request, async (_user, requestId) => {
+    const startTime = Date.now();
+
     try {
       // Parse query params
       const { searchParams } = new URL(request.url);
@@ -64,11 +67,16 @@ export async function GET(request: NextRequest): Promise<Response> {
       const validation = SearchErc20TokensQuerySchema.safeParse(queryParams);
 
       if (!validation.success) {
+        apiLog.validationError(apiLogger, requestId, validation.error.errors);
+
         const errorResponse = createErrorResponse(
           ApiErrorCode.VALIDATION_ERROR,
           'Invalid query parameters',
           validation.error.errors
         );
+
+        apiLog.requestEnd(apiLogger, requestId, 400, Date.now() - startTime);
+
         return NextResponse.json(errorResponse, {
           status: ErrorCodeToHttpStatus[ApiErrorCode.VALIDATION_ERROR],
         });
@@ -84,6 +92,18 @@ export async function GET(request: NextRequest): Promise<Response> {
         address,
       });
 
+      apiLogger.info({
+        requestId,
+        operation: 'search',
+        resourceType: 'erc20-tokens',
+        chainId,
+        symbol,
+        name,
+        address: address?.slice(0, 10) + '...',
+        resultsCount: candidates.length,
+        msg: `Token search returned ${candidates.length} results`,
+      });
+
       // Candidates are already in the correct API response format
       // (no conversion needed - they come from CoinGecko)
       const response = createSuccessResponse(candidates, {
@@ -92,9 +112,11 @@ export async function GET(request: NextRequest): Promise<Response> {
         timestamp: new Date().toISOString(),
       });
 
+      apiLog.requestEnd(apiLogger, requestId, 200, Date.now() - startTime);
+
       return NextResponse.json(response, { status: 200 });
     } catch (error) {
-      console.error('Search ERC-20 tokens error:', error);
+      apiLog.methodError(apiLogger, 'GET /api/v1/tokens/erc20/search', error, { requestId });
 
       // Map service errors to API error codes
       if (error instanceof Error) {
@@ -104,6 +126,9 @@ export async function GET(request: NextRequest): Promise<Response> {
             'At least one search parameter (symbol or name) required',
             error.message
           );
+
+          apiLog.requestEnd(apiLogger, requestId, 400, Date.now() - startTime);
+
           return NextResponse.json(errorResponse, {
             status: ErrorCodeToHttpStatus[ApiErrorCode.VALIDATION_ERROR],
           });
@@ -115,6 +140,9 @@ export async function GET(request: NextRequest): Promise<Response> {
             'Chain not supported',
             error.message
           );
+
+          apiLog.requestEnd(apiLogger, requestId, 400, Date.now() - startTime);
+
           return NextResponse.json(errorResponse, {
             status: ErrorCodeToHttpStatus[ApiErrorCode.CHAIN_NOT_SUPPORTED],
           });
@@ -127,6 +155,9 @@ export async function GET(request: NextRequest): Promise<Response> {
         'Failed to search tokens',
         error instanceof Error ? error.message : String(error)
       );
+
+      apiLog.requestEnd(apiLogger, requestId, 500, Date.now() - startTime);
+
       return NextResponse.json(errorResponse, {
         status: ErrorCodeToHttpStatus[ApiErrorCode.INTERNAL_SERVER_ERROR],
       });
