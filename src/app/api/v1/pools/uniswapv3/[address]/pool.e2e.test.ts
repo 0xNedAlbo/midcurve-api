@@ -123,6 +123,67 @@ describe('GET /api/v1/pools/uniswapv3/:address', () => {
       expect(data.data.metrics).toBeUndefined();
     }, 10000);
 
+    it('should include fee data when fees=true', async () => {
+      const response = await authenticatedGet(
+        `/api/v1/pools/uniswapv3/${WETH_USDC_POOL_005}?chainId=42161&fees=true`
+      );
+
+      expect(response.status).toBe(200);
+
+      const data = await parseJsonResponse<ApiResponse<GetUniswapV3PoolData>>(response);
+
+      expect(data.success).toBe(true);
+      expect(data.data.pool).toBeDefined();
+
+      // Verify fee data is included
+      expect(data.data.feeData).toBeDefined();
+      expect(data.data.feeData!.token0DailyVolume).toBeDefined();
+      expect(typeof data.data.feeData!.token0DailyVolume).toBe('string');
+      expect(data.data.feeData!.token1DailyVolume).toBeDefined();
+      expect(typeof data.data.feeData!.token1DailyVolume).toBe('string');
+      expect(data.data.feeData!.token0Price).toBeDefined();
+      expect(typeof data.data.feeData!.token0Price).toBe('string');
+      expect(data.data.feeData!.token1Price).toBeDefined();
+      expect(typeof data.data.feeData!.token1Price).toBe('string');
+      expect(data.data.feeData!.poolLiquidity).toBeDefined();
+      expect(typeof data.data.feeData!.poolLiquidity).toBe('string');
+      expect(data.data.feeData!.calculatedAt).toBeDefined();
+      expect(typeof data.data.feeData!.calculatedAt).toBe('string');
+    }, 10000);
+
+    it('should not include fee data when fees=false', async () => {
+      const response = await authenticatedGet(
+        `/api/v1/pools/uniswapv3/${WETH_USDC_POOL_005}?chainId=42161&fees=false`
+      );
+
+      expect(response.status).toBe(200);
+
+      const data = await parseJsonResponse<ApiResponse<GetUniswapV3PoolData>>(response);
+
+      expect(data.success).toBe(true);
+      expect(data.data.pool).toBeDefined();
+      expect(data.data.feeData).toBeUndefined();
+    }, 10000);
+
+    it('should include both metrics and fee data when both flags are true', async () => {
+      const response = await authenticatedGet(
+        `/api/v1/pools/uniswapv3/${WETH_USDC_POOL_005}?chainId=42161&enrichMetrics=true&fees=true`
+      );
+
+      expect(response.status).toBe(200);
+
+      const data = await parseJsonResponse<ApiResponse<GetUniswapV3PoolData>>(response);
+
+      expect(data.success).toBe(true);
+      expect(data.data.pool).toBeDefined();
+
+      // Both metrics and fee data should be included
+      expect(data.data.metrics).toBeDefined();
+      expect(data.data.metrics!.tvlUSD).toBeDefined();
+      expect(data.data.feeData).toBeDefined();
+      expect(data.data.feeData!.token0DailyVolume).toBeDefined();
+    }, 10000);
+
     it('should return same pool data as discovery endpoint', async () => {
       // Get pool via discovery
       const discoveryResponse = await authenticatedGet(

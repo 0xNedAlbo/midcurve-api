@@ -33,6 +33,13 @@ export interface GetUniswapV3PoolQuery {
    * @example true
    */
   enrichMetrics?: boolean;
+
+  /**
+   * Whether to enrich response with fee data for APR calculations
+   * Defaults to false if not provided
+   * @example true
+   */
+  fees?: boolean;
 }
 
 /**
@@ -69,5 +76,47 @@ export interface GetUniswapV3PoolData {
      * @example "1234.56"
      */
     feesUSD: string;
+  };
+
+  /**
+   * Optional fee data for APR calculations (only included if fees=true)
+   * Includes 24-hour trading volumes, token prices, and pool liquidity
+   */
+  feeData?: {
+    /**
+     * Token0 24-hour volume in token units (BigInt as string)
+     * @example "12345678901234"
+     */
+    token0DailyVolume: string;
+
+    /**
+     * Token1 24-hour volume in token units (BigInt as string)
+     * @example "123456789012345678"
+     */
+    token1DailyVolume: string;
+
+    /**
+     * Token0 price in token1 terms (BigInt as string, scaled by token1 decimals)
+     * @example "4016123456"
+     */
+    token0Price: string;
+
+    /**
+     * Token1 price in token0 terms (BigInt as string, scaled by token0 decimals)
+     * @example "248901234567890"
+     */
+    token1Price: string;
+
+    /**
+     * Current pool liquidity (BigInt as string)
+     * @example "5234567890123456789"
+     */
+    poolLiquidity: string;
+
+    /**
+     * Timestamp when fee data was calculated
+     * @example "2025-10-21T14:30:00.000Z"
+     */
+    calculatedAt: string;
   };
 }

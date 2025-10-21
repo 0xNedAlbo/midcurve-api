@@ -21,7 +21,7 @@ export const GetUniswapV3PoolParamsSchema = z.object({
 /**
  * Schema for query parameters
  *
- * Validates chainId (positive integer) and optional enrichMetrics flag
+ * Validates chainId (positive integer), optional enrichMetrics flag, and optional fees flag
  */
 export const GetUniswapV3PoolQuerySchema = z.object({
   chainId: z.coerce
@@ -33,6 +33,13 @@ export const GetUniswapV3PoolQuerySchema = z.object({
     .positive('chainId must be positive'),
 
   enrichMetrics: z
+    .string()
+    .optional()
+    .default('false')
+    .transform((val) => val === 'true')
+    .pipe(z.boolean()),
+
+  fees: z
     .string()
     .optional()
     .default('false')

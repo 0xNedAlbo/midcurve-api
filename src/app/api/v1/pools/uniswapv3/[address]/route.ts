@@ -42,13 +42,15 @@ const subgraphClient = UniswapV3SubgraphClient.getInstance();
  * Query params:
  * - chainId (required): EVM chain ID (e.g., 1, 42161, 8453)
  * - enrichMetrics (optional): Include subgraph metrics (TVL, volume, fees). Defaults to false.
+ * - fees (optional): Include fee data for APR calculations (24h volumes, token prices). Defaults to false.
  *
  * Example:
- * GET /api/v1/pools/uniswapv3/0xC31E54c7a869B9FcBEcc14363CF510d1c41fa443?chainId=42161&enrichMetrics=true
+ * GET /api/v1/pools/uniswapv3/0xC31E54c7a869B9FcBEcc14363CF510d1c41fa443?chainId=42161&enrichMetrics=true&fees=true
  *
  * Returns:
  * - Pool data with fresh on-chain state (price, liquidity, tick)
  * - Optional subgraph metrics if enrichMetrics=true
+ * - Optional fee data if fees=true
  */
 export async function GET(
   request: NextRequest,
@@ -103,7 +105,7 @@ export async function GET(
         });
       }
 
-      const { chainId, enrichMetrics } = queryResult.data;
+      const { chainId, enrichMetrics, fees } = queryResult.data;
 
       // Log request (no dedicated request log method, done inline)
 
@@ -189,6 +191,29 @@ export async function GET(
         }
       }
 
+      // 4b. Optionally enrich with fee data for APR calculations
+      let feeData;
+      if (fees) {
+        try {
+          const poolFeeData = await subgraphClient.getPoolFeeData(chainId, address);
+          feeData = {
+            token0DailyVolume: poolFeeData.token0.dailyVolume,
+            token1DailyVolume: poolFeeData.token1.dailyVolume,
+            token0Price: poolFeeData.token0.price,
+            token1Price: poolFeeData.token1.price,
+            poolLiquidity: poolFeeData.poolLiquidity,
+            calculatedAt: poolFeeData.calculatedAt.toISOString(),
+          };
+        } catch (error) {
+          // Graceful degradation: log warning but don't fail request
+          apiLogger.warn(
+            { requestId, chainId, address, error },
+            'Failed to fetch fee data, proceeding without fees'
+          );
+          // feeData remains undefined
+        }
+      }
+
       // 5. Serialize pool (convert BigInt to strings)
       const serializedPool = serializeUniswapV3Pool(pool);
 
@@ -198,6 +223,7 @@ export async function GET(
       const responseData: GetUniswapV3PoolData = {
         pool: serializedPool as unknown as UniswapV3Pool,
         ...(metrics && { metrics }),
+        ...(feeData && { feeData }),
       };
 
       const response = createSuccessResponse(responseData, {
@@ -205,6 +231,7 @@ export async function GET(
         address: pool.config.address,
         chainId,
         hasMetrics: !!metrics,
+        hasFeeData: !!feeData,
       });
 
       apiLog.requestEnd(apiLogger, requestId, 200, Date.now() - startTime);
