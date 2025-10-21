@@ -10,6 +10,103 @@
 
 import { execSync } from 'child_process';
 import { PrismaClient } from '@prisma/client';
+import { CoinGeckoClient } from '@midcurve/services';
+
+/**
+ * Warm up the CoinGecko cache with token list and market data
+ * This significantly reduces API calls during E2E test execution
+ *
+ * Strategy:
+ * 1. Check if cache is already warm (all coin details exist)
+ * 2. If warm, skip API calls (0 requests)
+ * 3. If not warm:
+ *    a. Fetch token list (includes platform data) - 1 API call
+ *    b. Fetch market data in batch (logo URLs, market caps) - 1 API call
+ *    c. Manually populate individual coin detail caches with 24h TTL
+ *
+ * Cache retention: 24 hours (vs default 1 hour)
+ * Total API calls: 0 (if warm) or 2 (if cold)
+ */
+async function warmUpCoinGeckoCache(): Promise<void> {
+  console.log('🔥 Warming up CoinGecko cache...');
+
+  try {
+    const client = CoinGeckoClient.getInstance();
+
+    // Known stable tokens used across E2E tests
+    // Only these 3 tokens are needed for API testing
+    const TEST_COIN_IDS = ['usd-coin', 'weth', 'wrapped-bitcoin'];
+    const TTL_24_HOURS = 86400; // 24 hours in seconds
+
+    // Check if cache is already warm by checking individual coin detail caches
+    console.log('  🔍 Checking if cache is already warm...');
+    const cacheService = (client as any).cacheService; // Access private field
+    const cachedCoins = await Promise.all(
+      TEST_COIN_IDS.map((coinId) => cacheService.get(`coingecko:coin:${coinId}`))
+    );
+
+    // If all coins are cached, we're done
+    if (cachedCoins.every((coin) => coin !== null)) {
+      console.log('  ✅ Cache already warm (all coins cached), skipping API calls');
+      console.log('🎉 Cache warming complete! Total: 0 API calls (cache hit)\n');
+      return;
+    }
+
+    console.log('  ❄️  Cache is cold, fetching fresh data...');
+
+    // Step 1: Fetch complete token list with platform data (1 API call)
+    console.log('  📋 Step 1: Fetching token list with platform data...');
+    const tokens = await client.getAllTokens();
+    console.log(`  ✅ Cached ${tokens.length} tokens with platform addresses`);
+
+    // Step 2: Fetch market data for test tokens in batch (1 API call)
+    console.log(`  💰 Step 2: Fetching market data for ${TEST_COIN_IDS.length} coins: ${TEST_COIN_IDS.join(', ')}...`);
+    const marketData = await client.getCoinsMarketData(TEST_COIN_IDS);
+    console.log(`  ✅ Cached market data for ${marketData.length} coins`);
+
+    // Step 3: Manually populate individual coin detail caches with 24h TTL
+    console.log('  🔧 Step 3: Populating individual coin detail caches (24h TTL)...');
+
+    for (const market of marketData) {
+      // Find the corresponding token from the token list (has platform data)
+      const token = tokens.find((t) => t.id === market.id);
+      if (!token) {
+        console.warn(`  ⚠️  Token ${market.id} not found in token list`);
+        continue;
+      }
+
+      // Construct a CoinGeckoDetailedCoin object by combining both sources
+      // This matches the structure returned by getCoinDetails()
+      const detailedCoin = {
+        id: market.id,
+        symbol: market.symbol,
+        name: market.name,
+        image: {
+          thumb: market.image,
+          small: market.image,
+          large: market.image,
+        },
+        market_data: {
+          market_cap: {
+            usd: market.market_cap,
+          },
+        },
+        platforms: token.platforms, // Platform data from token list
+      };
+
+      // Manually cache this coin detail with 24h TTL
+      // (using the same cache key pattern as getCoinDetails)
+      const cacheKey = `coingecko:coin:${market.id}`;
+      await cacheService.set(cacheKey, detailedCoin, TTL_24_HOURS);
+    }
+
+    console.log(`  ✅ Populated ${marketData.length} individual coin detail caches (24h retention)`);
+    console.log('🎉 Cache warming complete! Total: 2 API calls (getAllTokens + getCoinsMarketData)\n');
+  } catch (error) {
+    console.warn('⚠️  Cache warming failed (tests will make real API calls):', error);
+    // Don't throw - let tests proceed with real API calls if warming fails
+  }
+}
 
 export default async function globalSetup() {
   console.log('\n🔧 Setting up E2E test environment...\n');
@@ -57,8 +154,12 @@ export default async function globalSetup() {
       stdio: 'inherit',
       env: { ...process.env, DATABASE_URL: databaseUrl },
     });
+    console.log('✅ Test database seeded\n');
 
-    console.log('\n✅ E2E test environment ready!\n');
+    // Warm up CoinGecko cache (reduces API calls across all E2E tests)
+    await warmUpCoinGeckoCache();
+
+    console.log('✅ E2E test environment ready!\n');
 
   } catch (error) {
     console.error('❌ Failed to setup test database:', error);
