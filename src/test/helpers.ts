@@ -62,6 +62,42 @@ export const TEST_TOKENS = {
     symbol: 'USDC',
     name: 'USD Coin',
   },
+
+  /**
+   * WETH on Arbitrum
+   * - High liquidity, multiple Uniswap V3 pools
+   * - Reliable for testing pool discovery
+   */
+  WETH_ARBITRUM: {
+    address: '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1',
+    chainId: 42161,
+    symbol: 'WETH',
+    name: 'Wrapped Ether',
+  },
+
+  /**
+   * USDC (native) on Arbitrum
+   * - High liquidity, pairs with WETH and WBTC
+   * - Reliable for testing pool discovery
+   */
+  USDC_ARBITRUM: {
+    address: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
+    chainId: 42161,
+    symbol: 'USDC',
+    name: 'USD Coin',
+  },
+
+  /**
+   * WBTC on Arbitrum
+   * - Medium liquidity, pairs with USDC and WETH
+   * - Reliable for testing pool discovery
+   */
+  WBTC_ARBITRUM: {
+    address: '0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f',
+    chainId: 42161,
+    symbol: 'WBTC',
+    name: 'Wrapped BTC',
+  },
 } as const;
 
 // ============================================================================

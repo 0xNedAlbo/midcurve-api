@@ -60,10 +60,20 @@ async function warmUpCoinGeckoCache(): Promise<void> {
     const tokens = await client.getAllTokens();
     console.log(`  ✅ Cached ${tokens.length} tokens with platform addresses`);
 
+    // Override with 24h TTL for test stability
+    await cacheService.set('coingecko:tokens:all', tokens, TTL_24_HOURS);
+    console.log(`  🔧 Extended token list cache to 24h TTL`);
+
     // Step 2: Fetch market data for test tokens in batch (1 API call)
     console.log(`  💰 Step 2: Fetching market data for ${TEST_COIN_IDS.length} coins: ${TEST_COIN_IDS.join(', ')}...`);
     const marketData = await client.getCoinsMarketData(TEST_COIN_IDS);
     console.log(`  ✅ Cached market data for ${marketData.length} coins`);
+
+    // Override with 24h TTL for test stability
+    const sortedIds = [...TEST_COIN_IDS].sort();
+    const marketCacheKey = `coingecko:markets:${sortedIds.join(',')}`;
+    await cacheService.set(marketCacheKey, marketData, TTL_24_HOURS);
+    console.log(`  🔧 Extended market data cache to 24h TTL`);
 
     // Step 3: Manually populate individual coin detail caches with 24h TTL
     console.log('  🔧 Step 3: Populating individual coin detail caches (24h TTL)...');
@@ -102,7 +112,8 @@ async function warmUpCoinGeckoCache(): Promise<void> {
     }
 
     console.log(`  ✅ Populated ${marketData.length} individual coin detail caches (24h retention)`);
-    console.log('🎉 Cache warming complete! Total: 2 API calls (getAllTokens + getCoinsMarketData)\n');
+    console.log('🎉 Cache warming complete! Total: 2 API calls (getAllTokens + getCoinsMarketData)');
+    console.log(`  📦 All 5 cache entries extended to 24h TTL (token list + market data + ${marketData.length} coin details)\n`);
   } catch (error) {
     console.warn('⚠️  Cache warming failed (tests will make real API calls):', error);
     // Don't throw - let tests proceed with real API calls if warming fails

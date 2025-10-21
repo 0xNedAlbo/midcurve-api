@@ -56,7 +56,9 @@ export enum ApiErrorCode {
 
   // Server errors (5xx)
   INTERNAL_SERVER_ERROR = 'INTERNAL_SERVER_ERROR',
+  BAD_GATEWAY = 'BAD_GATEWAY',
   SERVICE_UNAVAILABLE = 'SERVICE_UNAVAILABLE',
+  EXTERNAL_SERVICE_ERROR = 'EXTERNAL_SERVICE_ERROR',
 
   // Validation errors
   VALIDATION_ERROR = 'VALIDATION_ERROR',
@@ -149,7 +151,9 @@ export const ErrorCodeToHttpStatus: Record<ApiErrorCode, number> = {
   [ApiErrorCode.UNPROCESSABLE_ENTITY]: 422,
   [ApiErrorCode.TOO_MANY_REQUESTS]: 429,
   [ApiErrorCode.INTERNAL_SERVER_ERROR]: 500,
+  [ApiErrorCode.BAD_GATEWAY]: 502,
   [ApiErrorCode.SERVICE_UNAVAILABLE]: 503,
+  [ApiErrorCode.EXTERNAL_SERVICE_ERROR]: 502,
   [ApiErrorCode.VALIDATION_ERROR]: 400,
   [ApiErrorCode.TOKEN_NOT_FOUND]: 404,
   [ApiErrorCode.POOL_NOT_FOUND]: 404,
