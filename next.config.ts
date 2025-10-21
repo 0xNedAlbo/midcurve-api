@@ -24,6 +24,17 @@ const nextConfig: NextConfig = {
       fullUrl: true,
     },
   },
+
+  /* Webpack configuration - exclude test files from build */
+  webpack: (config) => {
+    // Exclude test files from being bundled
+    config.module.rules.push({
+      test: /\.(test|e2e\.test)\.(ts|tsx|js|jsx)$/,
+      loader: 'ignore-loader',
+    });
+
+    return config;
+  },
 };
 
 export default nextConfig;

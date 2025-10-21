@@ -1,7 +1,7 @@
 /**
  * Uniswap V3 Pool Discovery Endpoint E2E Tests
  *
- * Tests the GET /api/pools/uniswapv3/discover endpoint end-to-end.
+ * Tests the GET /api/v1/pools/uniswapv3/discover endpoint end-to-end.
  *
  * Note: This endpoint makes real calls to:
  * - Uniswap V3 Factory contract on Arbitrum (on-chain)
@@ -26,13 +26,13 @@ const WETH = TEST_TOKENS.WETH_ARBITRUM;
 const USDC = TEST_TOKENS.USDC_ARBITRUM;
 const WBTC = TEST_TOKENS.WBTC_ARBITRUM;
 
-describe('GET /api/pools/uniswapv3/discover', () => {
+describe('GET /api/v1/pools/uniswapv3/discover', () => {
   describe('successful pool discovery', () => {
     it(
       'should return 200 OK with valid token pair',
       async () => {
         const response = await authenticatedGet(
-          `/api/pools/uniswapv3/discover?chainId=${WETH.chainId}&tokenA=${WETH.address}&tokenB=${USDC.address}`
+          `/api/v1/pools/uniswapv3/discover?chainId=${WETH.chainId}&tokenA=${WETH.address}&tokenB=${USDC.address}`
         );
         expect(response.status).toBe(200);
       },
@@ -43,7 +43,7 @@ describe('GET /api/pools/uniswapv3/discover', () => {
       'should return valid JSON response structure',
       async () => {
         const response = await authenticatedGet(
-          `/api/pools/uniswapv3/discover?chainId=${WETH.chainId}&tokenA=${WETH.address}&tokenB=${USDC.address}`
+          `/api/v1/pools/uniswapv3/discover?chainId=${WETH.chainId}&tokenA=${WETH.address}&tokenB=${USDC.address}`
         );
         const data =
           await parseJsonResponse<DiscoverUniswapV3PoolsResponse>(response);
@@ -63,7 +63,7 @@ describe('GET /api/pools/uniswapv3/discover', () => {
       'should return pool discovery results with correct structure',
       async () => {
         const response = await authenticatedGet(
-          `/api/pools/uniswapv3/discover?chainId=${WETH.chainId}&tokenA=${WETH.address}&tokenB=${USDC.address}`
+          `/api/v1/pools/uniswapv3/discover?chainId=${WETH.chainId}&tokenA=${WETH.address}&tokenB=${USDC.address}`
         );
         const data =
           await parseJsonResponse<DiscoverUniswapV3PoolsResponse>(response);
@@ -108,7 +108,7 @@ describe('GET /api/pools/uniswapv3/discover', () => {
       'should serialize bigint fields as strings',
       async () => {
         const response = await authenticatedGet(
-          `/api/pools/uniswapv3/discover?chainId=${WETH.chainId}&tokenA=${WETH.address}&tokenB=${USDC.address}`
+          `/api/v1/pools/uniswapv3/discover?chainId=${WETH.chainId}&tokenA=${WETH.address}&tokenB=${USDC.address}`
         );
         const data =
           await parseJsonResponse<DiscoverUniswapV3PoolsResponse>(response);
@@ -135,7 +135,7 @@ describe('GET /api/pools/uniswapv3/discover', () => {
       'should sort results by TVL descending',
       async () => {
         const response = await authenticatedGet(
-          `/api/pools/uniswapv3/discover?chainId=${WETH.chainId}&tokenA=${WETH.address}&tokenB=${USDC.address}`
+          `/api/v1/pools/uniswapv3/discover?chainId=${WETH.chainId}&tokenA=${WETH.address}&tokenB=${USDC.address}`
         );
         const data =
           await parseJsonResponse<DiscoverUniswapV3PoolsResponse>(response);
@@ -156,7 +156,7 @@ describe('GET /api/pools/uniswapv3/discover', () => {
       'should work with WBTC/USDC pair',
       async () => {
         const response = await authenticatedGet(
-          `/api/pools/uniswapv3/discover?chainId=${WBTC.chainId}&tokenA=${WBTC.address}&tokenB=${USDC.address}`
+          `/api/v1/pools/uniswapv3/discover?chainId=${WBTC.chainId}&tokenA=${WBTC.address}&tokenB=${USDC.address}`
         );
         const data =
           await parseJsonResponse<DiscoverUniswapV3PoolsResponse>(response);
@@ -173,7 +173,7 @@ describe('GET /api/pools/uniswapv3/discover', () => {
       'should work with WBTC/WETH pair',
       async () => {
         const response = await authenticatedGet(
-          `/api/pools/uniswapv3/discover?chainId=${WBTC.chainId}&tokenA=${WBTC.address}&tokenB=${WETH.address}`
+          `/api/v1/pools/uniswapv3/discover?chainId=${WBTC.chainId}&tokenA=${WBTC.address}&tokenB=${WETH.address}`
         );
         const data =
           await parseJsonResponse<DiscoverUniswapV3PoolsResponse>(response);
@@ -189,7 +189,7 @@ describe('GET /api/pools/uniswapv3/discover', () => {
   describe('validation errors', () => {
     it('should return 400 for missing chainId', async () => {
       const response = await authenticatedGet(
-        `/api/pools/uniswapv3/discover?tokenA=${WETH.address}&tokenB=${USDC.address}`
+        `/api/v1/pools/uniswapv3/discover?tokenA=${WETH.address}&tokenB=${USDC.address}`
       );
       const data = await parseJsonResponse<{ success: false; error: { code: string } }>(response);
 
@@ -201,7 +201,7 @@ describe('GET /api/pools/uniswapv3/discover', () => {
 
     it('should return 400 for missing tokenA', async () => {
       const response = await authenticatedGet(
-        `/api/pools/uniswapv3/discover?chainId=${WETH.chainId}&tokenB=${USDC.address}`
+        `/api/v1/pools/uniswapv3/discover?chainId=${WETH.chainId}&tokenB=${USDC.address}`
       );
       const data = await parseJsonResponse<{ success: false; error: { code: string } }>(response);
 
@@ -213,7 +213,7 @@ describe('GET /api/pools/uniswapv3/discover', () => {
 
     it('should return 400 for missing tokenB', async () => {
       const response = await authenticatedGet(
-        `/api/pools/uniswapv3/discover?chainId=${WETH.chainId}&tokenA=${WETH.address}`
+        `/api/v1/pools/uniswapv3/discover?chainId=${WETH.chainId}&tokenA=${WETH.address}`
       );
       const data = await parseJsonResponse<{ success: false; error: { code: string } }>(response);
 
@@ -225,7 +225,7 @@ describe('GET /api/pools/uniswapv3/discover', () => {
 
     it('should return 400 for invalid address format (tokenA)', async () => {
       const response = await authenticatedGet(
-        `/api/pools/uniswapv3/discover?chainId=${WETH.chainId}&tokenA=invalid&tokenB=${USDC.address}`
+        `/api/v1/pools/uniswapv3/discover?chainId=${WETH.chainId}&tokenA=invalid&tokenB=${USDC.address}`
       );
       const data = await parseJsonResponse<{ success: false; error: { code: string } }>(response);
 
@@ -237,7 +237,7 @@ describe('GET /api/pools/uniswapv3/discover', () => {
 
     it('should return 400 for invalid chainId format', async () => {
       const response = await authenticatedGet(
-        `/api/pools/uniswapv3/discover?chainId=abc&tokenA=${WETH.address}&tokenB=${USDC.address}`
+        `/api/v1/pools/uniswapv3/discover?chainId=abc&tokenA=${WETH.address}&tokenB=${USDC.address}`
       );
       const data = await parseJsonResponse<{ success: false; error: { code: string } }>(response);
 
@@ -251,7 +251,7 @@ describe('GET /api/pools/uniswapv3/discover', () => {
   describe('authentication', () => {
     it('should return 401 without authentication', async () => {
       const response = await unauthenticatedGet(
-        `/api/pools/uniswapv3/discover?chainId=${WETH.chainId}&tokenA=${WETH.address}&tokenB=${USDC.address}`
+        `/api/v1/pools/uniswapv3/discover?chainId=${WETH.chainId}&tokenA=${WETH.address}&tokenB=${USDC.address}`
       );
 
       expect(response.status).toBe(401);
@@ -263,7 +263,7 @@ describe('GET /api/pools/uniswapv3/discover', () => {
       'should handle lowercase addresses',
       async () => {
         const response = await authenticatedGet(
-          `/api/pools/uniswapv3/discover?chainId=${WETH.chainId}&tokenA=${WETH.address.toLowerCase()}&tokenB=${USDC.address.toLowerCase()}`
+          `/api/v1/pools/uniswapv3/discover?chainId=${WETH.chainId}&tokenA=${WETH.address.toLowerCase()}&tokenB=${USDC.address.toLowerCase()}`
         );
         const data =
           await parseJsonResponse<DiscoverUniswapV3PoolsResponse>(response);
@@ -280,7 +280,7 @@ describe('GET /api/pools/uniswapv3/discover', () => {
       async () => {
         // Try tokenB/tokenA instead of tokenA/tokenB
         const response = await authenticatedGet(
-          `/api/pools/uniswapv3/discover?chainId=${WETH.chainId}&tokenA=${USDC.address}&tokenB=${WETH.address}`
+          `/api/v1/pools/uniswapv3/discover?chainId=${WETH.chainId}&tokenA=${USDC.address}&tokenB=${WETH.address}`
         );
         const data =
           await parseJsonResponse<DiscoverUniswapV3PoolsResponse>(response);

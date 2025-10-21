@@ -6,3 +6,5 @@
 
 export * from './uniswapv3-discovery.types';
 export * from './uniswapv3-discovery.schema';
+export * from './uniswapv3-pool.types';
+export * from './uniswapv3-pool.schema';

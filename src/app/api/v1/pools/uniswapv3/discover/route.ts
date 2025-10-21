@@ -1,7 +1,7 @@
 /**
  * Uniswap V3 Pool Discovery Endpoint
  *
- * GET /api/pools/uniswapv3/discover - Discover pools for token pair
+ * GET /api/v1/pools/uniswapv3/discover - Discover pools for token pair
  *
  * Authentication: Required (session or API key)
  */
@@ -25,7 +25,7 @@ export const dynamic = 'force-dynamic';
 const poolDiscoveryService = new UniswapV3PoolDiscoveryService();
 
 /**
- * GET /api/pools/uniswapv3/discover
+ * GET /api/v1/pools/uniswapv3/discover
  *
  * Discovers Uniswap V3 pools for a token pair across all fee tiers.
  * Returns pools sorted by TVL with subgraph metrics.
@@ -36,7 +36,7 @@ const poolDiscoveryService = new UniswapV3PoolDiscoveryService();
  * - tokenB (required): Second token address (0x...)
  *
  * Example:
- * GET /api/pools/uniswapv3/discover?chainId=1&tokenA=0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2&tokenB=0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48
+ * GET /api/v1/pools/uniswapv3/discover?chainId=1&tokenA=0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2&tokenB=0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48
  *
  * Returns:
  * - Array of pool discovery results sorted by TVL descending
@@ -114,7 +114,7 @@ export async function GET(request: NextRequest): Promise<Response> {
     } catch (error) {
       apiLog.methodError(
         apiLogger,
-        'GET /api/pools/uniswapv3/discover',
+        'GET /api/v1/pools/uniswapv3/discover',
         error,
         {
           requestId,

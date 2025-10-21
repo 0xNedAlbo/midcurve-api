@@ -61,6 +61,7 @@
     "dotenv": "^17.2.3",
     "eslint": "^9.0.0",
     "eslint-config-next": "^15.5.0",
+    "ignore-loader": "^0.1.2",
     "prisma": "^6.17.1",
     "tsx": "^4.20.6",
     "typescript": "^5.3.3",
