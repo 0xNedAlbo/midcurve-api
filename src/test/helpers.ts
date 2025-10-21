@@ -160,7 +160,7 @@ export async function parseJsonResponse<T>(response: Response): Promise<T> {
 
   try {
     return JSON.parse(text) as T;
-  } catch (error) {
+  } catch {
     throw new Error(`Failed to parse JSON response: ${text}`);
   }
 }

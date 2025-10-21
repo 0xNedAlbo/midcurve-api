@@ -51,8 +51,8 @@ function parseArgs(): {
     process.exit(1);
   }
 
-  const method = args[0].toUpperCase();
-  let endpoint = args[1];
+  const method = args[0]!.toUpperCase();
+  let endpoint = args[1]!;
   const body = args[2];
 
   // Validate method
