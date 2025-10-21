@@ -41,15 +41,15 @@ const subgraphClient = UniswapV3SubgraphClient.getInstance();
  *
  * Query params:
  * - chainId (required): EVM chain ID (e.g., 1, 42161, 8453)
- * - enrichMetrics (optional): Include subgraph metrics (TVL, volume, fees). Defaults to false.
+ * - metrics (optional): Include subgraph metrics (TVL, volume, fees). Defaults to false.
  * - fees (optional): Include fee data for APR calculations (24h volumes, token prices). Defaults to false.
  *
  * Example:
- * GET /api/v1/pools/uniswapv3/0xC31E54c7a869B9FcBEcc14363CF510d1c41fa443?chainId=42161&enrichMetrics=true&fees=true
+ * GET /api/v1/pools/uniswapv3/0xC31E54c7a869B9FcBEcc14363CF510d1c41fa443?chainId=42161&metrics=true&fees=true
  *
  * Returns:
  * - Pool data with fresh on-chain state (price, liquidity, tick)
- * - Optional subgraph metrics if enrichMetrics=true
+ * - Optional subgraph metrics if metrics=true
  * - Optional fee data if fees=true
  */
 export async function GET(
@@ -105,7 +105,7 @@ export async function GET(
         });
       }
 
-      const { chainId, enrichMetrics, fees } = queryResult.data;
+      const { chainId, metrics, fees } = queryResult.data;
 
       // Log request (no dedicated request log method, done inline)
 
@@ -172,11 +172,11 @@ export async function GET(
       }
 
       // 4. Optionally enrich with subgraph metrics
-      let metrics;
-      if (enrichMetrics) {
+      let metricsData;
+      if (metrics) {
         try {
           const poolMetrics = await subgraphClient.getPoolMetrics(chainId, address);
-          metrics = {
+          metricsData = {
             tvlUSD: poolMetrics.tvlUSD,
             volumeUSD: poolMetrics.volumeUSD,
             feesUSD: poolMetrics.feesUSD,
@@ -187,7 +187,7 @@ export async function GET(
             { requestId, chainId, address, error },
             'Failed to fetch subgraph metrics, proceeding without metrics'
           );
-          // metrics remains undefined
+          // metricsData remains undefined
         }
       }
 
@@ -222,7 +222,7 @@ export async function GET(
       // The type cast is safe because the serialized structure matches UniswapV3Pool
       const responseData: GetUniswapV3PoolData = {
         pool: serializedPool as unknown as UniswapV3Pool,
-        ...(metrics && { metrics }),
+        ...(metricsData && { metrics: metricsData }),
         ...(feeData && { feeData }),
       };
 
@@ -230,7 +230,7 @@ export async function GET(
         poolId: pool.id,
         address: pool.config.address,
         chainId,
-        hasMetrics: !!metrics,
+        hasMetrics: !!metricsData,
         hasFeeData: !!feeData,
       });
 

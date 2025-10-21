@@ -87,9 +87,9 @@ describe('GET /api/v1/pools/uniswapv3/:address', () => {
       expect(data.data.pool.token1.symbol).toBe('USDC');
     }, 10000);
 
-    it('should include subgraph metrics when enrichMetrics=true', async () => {
+    it('should include subgraph metrics when metrics=true', async () => {
       const response = await authenticatedGet(
-        `/api/v1/pools/uniswapv3/${WETH_USDC_POOL_005}?chainId=42161&enrichMetrics=true`
+        `/api/v1/pools/uniswapv3/${WETH_USDC_POOL_005}?chainId=42161&metrics=true`
       );
 
       expect(response.status).toBe(200);
@@ -109,9 +109,9 @@ describe('GET /api/v1/pools/uniswapv3/:address', () => {
       expect(typeof data.data.metrics!.feesUSD).toBe('string');
     }, 10000);
 
-    it('should not include metrics when enrichMetrics=false', async () => {
+    it('should not include metrics when metrics=false', async () => {
       const response = await authenticatedGet(
-        `/api/v1/pools/uniswapv3/${WETH_USDC_POOL_005}?chainId=42161&enrichMetrics=false`
+        `/api/v1/pools/uniswapv3/${WETH_USDC_POOL_005}?chainId=42161&metrics=false`
       );
 
       expect(response.status).toBe(200);
@@ -167,7 +167,7 @@ describe('GET /api/v1/pools/uniswapv3/:address', () => {
 
     it('should include both metrics and fee data when both flags are true', async () => {
       const response = await authenticatedGet(
-        `/api/v1/pools/uniswapv3/${WETH_USDC_POOL_005}?chainId=42161&enrichMetrics=true&fees=true`
+        `/api/v1/pools/uniswapv3/${WETH_USDC_POOL_005}?chainId=42161&metrics=true&fees=true`
       );
 
       expect(response.status).toBe(200);

@@ -32,7 +32,7 @@ export interface GetUniswapV3PoolQuery {
    * Defaults to false if not provided
    * @example true
    */
-  enrichMetrics?: boolean;
+  metrics?: boolean;
 
   /**
    * Whether to enrich response with fee data for APR calculations
