@@ -18,7 +18,7 @@ import {
 import { ListPositionsQuerySchema } from '@/types/positions';
 import { serializeBigInt } from '@/lib/serializers';
 import { apiLogger, apiLog } from '@/lib/logger';
-import type { ListPositionsResponse } from '@/types/positions';
+import type { ListPositionsResponse, ListPositionData } from '@/types/positions';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -137,9 +137,9 @@ export async function GET(request: NextRequest): Promise<Response> {
       });
 
       // 3. Serialize bigints to strings for JSON
-      const serializedPositions = result.positions.map((position: any) =>
+      const serializedPositions = result.positions.map((position) =>
         serializeBigInt(position)
-      );
+      ) as ListPositionData[];
 
       // 4. Create paginated response
       const response: ListPositionsResponse = {

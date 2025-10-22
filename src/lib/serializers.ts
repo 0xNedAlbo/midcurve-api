@@ -200,6 +200,7 @@ export function serializeUniswapV3PositionState(state: UniswapV3PositionState) {
 export function serializeUniswapV3Position(position: UniswapV3Position) {
   return {
     id: position.id,
+    positionHash: position.positionHash,
     protocol: position.protocol,
     positionType: position.positionType,
     userId: position.userId,
