@@ -2,6 +2,7 @@
  * Specific Uniswap V3 Position Endpoint
  *
  * GET /api/v1/positions/uniswapv3/:chainId/:nftId
+ * PUT /api/v1/positions/uniswapv3/:chainId/:nftId
  * DELETE /api/v1/positions/uniswapv3/:chainId/:nftId
  *
  * Authentication: Required (session or API key)
@@ -19,12 +20,15 @@ import {
 import {
   GetUniswapV3PositionParamsSchema,
   DeleteUniswapV3PositionParamsSchema,
+  CreateUniswapV3PositionParamsSchema,
+  CreateUniswapV3PositionRequestSchema,
 } from '@/types/positions';
 import { serializeBigInt } from '@/lib/serializers';
 import { apiLogger, apiLog } from '@/lib/logger';
 import type {
   GetUniswapV3PositionResponse,
   DeleteUniswapV3PositionResponse,
+  CreateUniswapV3PositionData,
 } from '@/types/positions';
 
 export const runtime = 'nodejs';
@@ -367,6 +371,271 @@ export async function DELETE(
       const errorResponse = createErrorResponse(
         ApiErrorCode.INTERNAL_SERVER_ERROR,
         'Failed to delete position',
+        error instanceof Error ? error.message : String(error)
+      );
+      apiLog.requestEnd(apiLogger, requestId, 500, Date.now() - startTime);
+      return NextResponse.json(errorResponse, {
+        status: ErrorCodeToHttpStatus[ApiErrorCode.INTERNAL_SERVER_ERROR],
+      });
+    }
+  });
+}
+
+/**
+ * PUT /api/v1/positions/uniswapv3/:chainId/:nftId
+ *
+ * Create a Uniswap V3 position from user-provided data after sending an
+ * INCREASE_LIQUIDITY transaction on-chain.
+ *
+ * Features:
+ * - Idempotent: Returns existing position if already created
+ * - Minimal on-chain calls (pool discovery + historic pool price)
+ * - Full PnL tracking via ledger events
+ * - Auto quote token detection or explicit selection
+ * - Historic pool price at event blockNumber
+ *
+ * Path parameters:
+ * - chainId: EVM chain ID (e.g., 1 = Ethereum, 42161 = Arbitrum, etc.)
+ * - nftId: Uniswap V3 NFT token ID (positive integer)
+ *
+ * Request body:
+ * {
+ *   "poolAddress": "0x...",
+ *   "tickUpper": 201120,
+ *   "tickLower": 199120,
+ *   "ownerAddress": "0x...",
+ *   "quoteTokenAddress": "0x..." (optional),
+ *   "increaseEvent": {
+ *     "timestamp": "2025-01-15T10:30:00Z",
+ *     "blockNumber": "12345678",
+ *     "transactionIndex": 42,
+ *     "logIndex": 5,
+ *     "transactionHash": "0x...",
+ *     "liquidity": "1000000000000000000",
+ *     "amount0": "500000000",
+ *     "amount1": "250000000000000000"
+ *   }
+ * }
+ *
+ * Returns: Full position object with current on-chain state and financial tracking
+ *
+ * Example response:
+ * {
+ *   "success": true,
+ *   "data": {
+ *     "id": "uuid",
+ *     "protocol": "uniswapv3",
+ *     "currentValue": "1500000000",
+ *     "currentCostBasis": "1500000000",
+ *     "unrealizedPnl": "0",
+ *     "pool": { ... },
+ *     "config": { ... },
+ *     "state": { ... },
+ *     ...
+ *   }
+ * }
+ */
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ chainId: string; nftId: string }> }
+): Promise<Response> {
+  return withAuth(request, async (user, requestId) => {
+    const startTime = Date.now();
+
+    try {
+      // 1. Parse and validate path parameters
+      const resolvedParams = await params;
+      const paramsValidation = CreateUniswapV3PositionParamsSchema.safeParse(resolvedParams);
+
+      if (!paramsValidation.success) {
+        apiLog.validationError(apiLogger, requestId, paramsValidation.error.errors);
+
+        const errorResponse = createErrorResponse(
+          ApiErrorCode.VALIDATION_ERROR,
+          'Invalid path parameters',
+          paramsValidation.error.errors
+        );
+
+        apiLog.requestEnd(apiLogger, requestId, 400, Date.now() - startTime);
+
+        return NextResponse.json(errorResponse, {
+          status: ErrorCodeToHttpStatus[ApiErrorCode.VALIDATION_ERROR],
+        });
+      }
+
+      const { chainId, nftId } = paramsValidation.data;
+
+      // 2. Parse and validate request body
+      const body = await request.json();
+      const bodyValidation = CreateUniswapV3PositionRequestSchema.safeParse(body);
+
+      if (!bodyValidation.success) {
+        apiLog.validationError(apiLogger, requestId, bodyValidation.error.errors);
+
+        const errorResponse = createErrorResponse(
+          ApiErrorCode.VALIDATION_ERROR,
+          'Invalid request body',
+          bodyValidation.error.errors
+        );
+
+        apiLog.requestEnd(apiLogger, requestId, 400, Date.now() - startTime);
+
+        return NextResponse.json(errorResponse, {
+          status: ErrorCodeToHttpStatus[ApiErrorCode.VALIDATION_ERROR],
+        });
+      }
+
+      const {
+        poolAddress,
+        tickUpper,
+        tickLower,
+        ownerAddress,
+        quoteTokenAddress,
+        increaseEvent,
+      } = bodyValidation.data;
+
+      apiLog.businessOperation(apiLogger, requestId, 'create', 'position', `${chainId}/${nftId}`, {
+        chainId,
+        nftId,
+        poolAddress,
+        userId: user.id,
+      });
+
+      // 3. Convert string bigints to BigInt
+      const increaseEventBigInt = {
+        timestamp: new Date(increaseEvent.timestamp),
+        blockNumber: BigInt(increaseEvent.blockNumber),
+        transactionIndex: increaseEvent.transactionIndex,
+        logIndex: increaseEvent.logIndex,
+        transactionHash: increaseEvent.transactionHash,
+        liquidity: BigInt(increaseEvent.liquidity),
+        amount0: BigInt(increaseEvent.amount0),
+        amount1: BigInt(increaseEvent.amount1),
+      };
+
+      // 4. Create position from user data
+      const position = await uniswapV3PositionService.createPositionFromUserData(
+        user.id,
+        chainId,
+        nftId,
+        {
+          poolAddress,
+          tickUpper,
+          tickLower,
+          ownerAddress,
+          quoteTokenAddress,
+          increaseEvent: increaseEventBigInt,
+        }
+      );
+
+      apiLog.businessOperation(apiLogger, requestId, 'created', 'position', position.id, {
+        chainId,
+        nftId,
+        pool: `${position.pool.token0.symbol}/${position.pool.token1.symbol}`,
+        quoteToken: position.isToken0Quote
+          ? position.pool.token0.symbol
+          : position.pool.token1.symbol,
+        currentValue: position.currentValue.toString(),
+      });
+
+      // 5. Serialize bigints to strings for JSON
+      const serializedPosition = serializeBigInt(position) as CreateUniswapV3PositionData;
+
+      const response = createSuccessResponse(serializedPosition);
+
+      apiLog.requestEnd(apiLogger, requestId, 200, Date.now() - startTime);
+
+      return NextResponse.json(response, { status: 200 });
+    } catch (error) {
+      apiLog.methodError(
+        apiLogger,
+        'PUT /api/v1/positions/uniswapv3/:chainId/:nftId',
+        error,
+        { requestId }
+      );
+
+      // Map service errors to API error codes
+      if (error instanceof Error) {
+        // Invalid address format
+        if (error.message.includes('Invalid') && error.message.includes('address')) {
+          const errorResponse = createErrorResponse(
+            ApiErrorCode.INVALID_ADDRESS,
+            'Invalid address format',
+            error.message
+          );
+          apiLog.requestEnd(apiLogger, requestId, 400, Date.now() - startTime);
+          return NextResponse.json(errorResponse, {
+            status: ErrorCodeToHttpStatus[ApiErrorCode.INVALID_ADDRESS],
+          });
+        }
+
+        // Chain not supported
+        if (
+          error.message.includes('not configured') ||
+          error.message.includes('not supported')
+        ) {
+          const errorResponse = createErrorResponse(
+            ApiErrorCode.CHAIN_NOT_SUPPORTED,
+            'Chain not supported',
+            error.message
+          );
+          apiLog.requestEnd(apiLogger, requestId, 400, Date.now() - startTime);
+          return NextResponse.json(errorResponse, {
+            status: ErrorCodeToHttpStatus[ApiErrorCode.CHAIN_NOT_SUPPORTED],
+          });
+        }
+
+        // Pool not found
+        if (
+          error.message.includes('Pool not found') ||
+          error.message.includes('pool')
+        ) {
+          const errorResponse = createErrorResponse(
+            ApiErrorCode.POOL_NOT_FOUND,
+            'Pool not found',
+            error.message
+          );
+          apiLog.requestEnd(apiLogger, requestId, 404, Date.now() - startTime);
+          return NextResponse.json(errorResponse, {
+            status: ErrorCodeToHttpStatus[ApiErrorCode.POOL_NOT_FOUND],
+          });
+        }
+
+        // Quote token mismatch
+        if (error.message.includes('Quote token')) {
+          const errorResponse = createErrorResponse(
+            ApiErrorCode.BAD_REQUEST,
+            'Quote token does not match pool tokens',
+            error.message
+          );
+          apiLog.requestEnd(apiLogger, requestId, 400, Date.now() - startTime);
+          return NextResponse.json(errorResponse, {
+            status: ErrorCodeToHttpStatus[ApiErrorCode.BAD_REQUEST],
+          });
+        }
+
+        // On-chain read failures (RPC errors, contract errors)
+        if (
+          error.message.includes('Failed to read') ||
+          error.message.includes('contract') ||
+          error.message.includes('RPC')
+        ) {
+          const errorResponse = createErrorResponse(
+            ApiErrorCode.BAD_REQUEST,
+            'Failed to fetch data from blockchain',
+            error.message
+          );
+          apiLog.requestEnd(apiLogger, requestId, 400, Date.now() - startTime);
+          return NextResponse.json(errorResponse, {
+            status: ErrorCodeToHttpStatus[ApiErrorCode.BAD_REQUEST],
+          });
+        }
+      }
+
+      // Generic error
+      const errorResponse = createErrorResponse(
+        ApiErrorCode.INTERNAL_SERVER_ERROR,
+        'Failed to create position',
         error instanceof Error ? error.message : String(error)
       );
       apiLog.requestEnd(apiLogger, requestId, 500, Date.now() - startTime);
