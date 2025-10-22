@@ -2,6 +2,7 @@
  * Specific Uniswap V3 Position Endpoint
  *
  * GET /api/v1/positions/uniswapv3/:chainId/:nftId
+ * DELETE /api/v1/positions/uniswapv3/:chainId/:nftId
  *
  * Authentication: Required (session or API key)
  */
@@ -15,10 +16,16 @@ import {
   ApiErrorCode,
   ErrorCodeToHttpStatus,
 } from '@/types/common';
-import { GetUniswapV3PositionParamsSchema } from '@/types/positions';
+import {
+  GetUniswapV3PositionParamsSchema,
+  DeleteUniswapV3PositionParamsSchema,
+} from '@/types/positions';
 import { serializeBigInt } from '@/lib/serializers';
 import { apiLogger, apiLog } from '@/lib/logger';
-import type { GetUniswapV3PositionResponse } from '@/types/positions';
+import type {
+  GetUniswapV3PositionResponse,
+  DeleteUniswapV3PositionResponse,
+} from '@/types/positions';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -211,6 +218,155 @@ export async function GET(
       const errorResponse = createErrorResponse(
         ApiErrorCode.INTERNAL_SERVER_ERROR,
         'Failed to fetch position',
+        error instanceof Error ? error.message : String(error)
+      );
+      apiLog.requestEnd(apiLogger, requestId, 500, Date.now() - startTime);
+      return NextResponse.json(errorResponse, {
+        status: ErrorCodeToHttpStatus[ApiErrorCode.INTERNAL_SERVER_ERROR],
+      });
+    }
+  });
+}
+
+/**
+ * DELETE /api/v1/positions/uniswapv3/:chainId/:nftId
+ *
+ * Delete a specific Uniswap V3 position owned by the authenticated user.
+ *
+ * Features:
+ * - Idempotent: Returns success even if position doesn't exist
+ * - Uses positionHash for fast indexed lookup
+ * - Verifies user ownership before deletion
+ * - Only deletes positions belonging to the authenticated user
+ *
+ * Path parameters:
+ * - chainId: EVM chain ID (e.g., 1 = Ethereum, 42161 = Arbitrum, etc.)
+ * - nftId: Uniswap V3 NFT token ID (positive integer)
+ *
+ * Returns: Empty success response
+ *
+ * Example response:
+ * {
+ *   "success": true,
+ *   "data": {},
+ *   "meta": { "requestId": "...", "timestamp": "..." }
+ * }
+ */
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ chainId: string; nftId: string }> }
+): Promise<Response> {
+  return withAuth(request, async (user, requestId) => {
+    const startTime = Date.now();
+
+    try {
+      // 1. Parse and validate path parameters
+      const resolvedParams = await params;
+      const validation = DeleteUniswapV3PositionParamsSchema.safeParse(resolvedParams);
+
+      if (!validation.success) {
+        apiLog.validationError(apiLogger, requestId, validation.error.errors);
+
+        const errorResponse = createErrorResponse(
+          ApiErrorCode.VALIDATION_ERROR,
+          'Invalid path parameters',
+          validation.error.errors
+        );
+
+        apiLog.requestEnd(apiLogger, requestId, 400, Date.now() - startTime);
+
+        return NextResponse.json(errorResponse, {
+          status: ErrorCodeToHttpStatus[ApiErrorCode.VALIDATION_ERROR],
+        });
+      }
+
+      const { chainId, nftId } = validation.data;
+
+      // 2. Generate position hash and look up position
+      // Format: "uniswapv3/{chainId}/{nftId}"
+      const positionHash = `uniswapv3/${chainId}/${nftId}`;
+
+      apiLog.businessOperation(apiLogger, requestId, 'lookup', 'position', positionHash, {
+        chainId,
+        nftId,
+        userId: user.id,
+      });
+
+      // Fast indexed lookup by positionHash
+      const dbPosition = await uniswapV3PositionService.findByPositionHash(user.id, positionHash);
+
+      // Idempotent: If position doesn't exist, consider it already deleted
+      if (!dbPosition) {
+        apiLog.businessOperation(
+          apiLogger,
+          requestId,
+          'delete-idempotent',
+          'position',
+          positionHash,
+          {
+            chainId,
+            nftId,
+            userId: user.id,
+            reason: 'Position not found (already deleted or never existed)',
+          }
+        );
+
+        const response = createSuccessResponse<DeleteUniswapV3PositionResponse>({});
+
+        apiLog.requestEnd(apiLogger, requestId, 200, Date.now() - startTime);
+
+        return NextResponse.json(response, { status: 200 });
+      }
+
+      apiLog.businessOperation(apiLogger, requestId, 'delete', 'position', dbPosition.id, {
+        chainId,
+        nftId,
+        positionHash,
+      });
+
+      // 3. Delete the position
+      // Service handles protocol verification and deletion
+      await uniswapV3PositionService.delete(dbPosition.id);
+
+      apiLog.businessOperation(apiLogger, requestId, 'deleted', 'position', dbPosition.id, {
+        chainId,
+        nftId,
+        positionHash,
+      });
+
+      const response = createSuccessResponse<DeleteUniswapV3PositionResponse>({});
+
+      apiLog.requestEnd(apiLogger, requestId, 200, Date.now() - startTime);
+
+      return NextResponse.json(response, { status: 200 });
+    } catch (error) {
+      apiLog.methodError(
+        apiLogger,
+        'DELETE /api/v1/positions/uniswapv3/:chainId/:nftId',
+        error,
+        { requestId }
+      );
+
+      // Map service errors to API error codes
+      if (error instanceof Error) {
+        // Protocol mismatch (shouldn't happen with positionHash lookup, but defensive)
+        if (error.message.includes('expected protocol')) {
+          const errorResponse = createErrorResponse(
+            ApiErrorCode.INTERNAL_SERVER_ERROR,
+            'Position protocol mismatch',
+            error.message
+          );
+          apiLog.requestEnd(apiLogger, requestId, 500, Date.now() - startTime);
+          return NextResponse.json(errorResponse, {
+            status: ErrorCodeToHttpStatus[ApiErrorCode.INTERNAL_SERVER_ERROR],
+          });
+        }
+      }
+
+      // Generic error
+      const errorResponse = createErrorResponse(
+        ApiErrorCode.INTERNAL_SERVER_ERROR,
+        'Failed to delete position',
         error instanceof Error ? error.message : String(error)
       );
       apiLog.requestEnd(apiLogger, requestId, 500, Date.now() - startTime);
