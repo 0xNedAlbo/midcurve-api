@@ -5,6 +5,19 @@
  */
 
 /**
+ * Type helper for serialized values
+ * Represents a value that has been recursively serialized (bigint → string, Date → string)
+ */
+export type SerializedValue =
+  | string
+  | number
+  | boolean
+  | null
+  | undefined
+  | SerializedValue[]
+  | { [key: string]: SerializedValue };
+
+/**
  * Recursively convert bigint fields to strings for JSON serialization
  *
  * This type transformer recursively walks through an object type and converts:
