@@ -22,7 +22,7 @@ import {
   unauthenticatedPost,
   parseJsonResponse,
 } from '@/test/helpers';
-import type { ImportUniswapV3PositionResponse } from '@/types/positions';
+import type { ImportUniswapV3PositionResponse } from '@midcurve/api-shared';
 
 /**
  * Test position: Closed WETH/USDC position on Arbitrum

@@ -37,8 +37,8 @@ import {
   createErrorResponse,
   ApiErrorCode,
   ErrorCodeToHttpStatus,
-} from '@/types/common';
-import { LinkWalletRequestSchema } from '@/types/auth';
+  LinkWalletRequestSchema,
+} from '@midcurve/api-shared';
 import { apiLogger, apiLog } from '@/lib/logger';
 
 export const runtime = 'nodejs';

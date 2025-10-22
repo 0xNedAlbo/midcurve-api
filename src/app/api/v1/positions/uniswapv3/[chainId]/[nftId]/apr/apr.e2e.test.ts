@@ -31,7 +31,7 @@ import type {
   ImportUniswapV3PositionResponse,
   AprPeriodsResponse,
   AprPeriodData,
-} from '@/types/positions';
+} from '@midcurve/api-shared';
 
 /**
  * Test position: Closed WETH/USDC position on Arbitrum

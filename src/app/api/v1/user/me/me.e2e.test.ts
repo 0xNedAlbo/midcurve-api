@@ -6,7 +6,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { authenticatedGet, unauthenticatedGet, parseJsonResponse } from '@/test/helpers';
-import type { ApiResponse } from '@/types/common';
+import type { ApiResponse } from '@midcurve/api-shared';
 
 type WalletData = {
   id: string;

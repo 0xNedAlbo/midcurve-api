@@ -20,7 +20,7 @@ import {
   parseJsonResponse,
   TEST_TOKENS,
 } from '@/test/helpers';
-import type { DiscoverUniswapV3PoolsResponse } from '@/types/pools';
+import type { DiscoverUniswapV3PoolsResponse } from '@midcurve/api-shared';
 
 const WETH = TEST_TOKENS.WETH_ARBITRUM;
 const USDC = TEST_TOKENS.USDC_ARBITRUM;

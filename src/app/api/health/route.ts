@@ -8,8 +8,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { nanoid } from 'nanoid';
-import { createSuccessResponse } from '@/types/common';
-import { HealthStatus, type HealthResponse } from '@/types/health';
+import { createSuccessResponse, HealthStatus, type HealthResponse } from '@midcurve/api-shared';
 import { apiLogger, apiLog } from '@/lib/logger';
 
 export const runtime = 'nodejs';

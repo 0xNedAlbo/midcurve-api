@@ -20,8 +20,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { nanoid } from 'nanoid';
 import { auth } from '@/lib/auth';
 import { AuthApiKeyService, AuthUserService } from '@midcurve/services';
-import { createErrorResponse, ApiErrorCode, ErrorCodeToHttpStatus } from '@/types/common';
-import type { AuthenticatedUser } from '@/types/auth';
+import { createErrorResponse, ApiErrorCode, ErrorCodeToHttpStatus } from '@midcurve/api-shared';
+import type { AuthenticatedUser } from '@midcurve/api-shared';
 import { apiLogger, apiLog } from '@/lib/logger';
 
 const apiKeyService = new AuthApiKeyService();

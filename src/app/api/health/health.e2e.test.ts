@@ -6,7 +6,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { unauthenticatedGet, parseJsonResponse } from '@/test/helpers';
-import { HealthStatus, type HealthResponse } from '@/types/health';
+import { HealthStatus, type HealthResponse } from '@midcurve/api-shared';
 
 describe('GET /api/health', () => {
   it('should return 200 OK', async () => {

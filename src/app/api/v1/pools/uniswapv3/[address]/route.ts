@@ -15,12 +15,12 @@ import {
   createErrorResponse,
   ApiErrorCode,
   ErrorCodeToHttpStatus,
-} from '@/types/common';
+} from '@midcurve/api-shared';
 import {
   GetUniswapV3PoolParamsSchema,
   GetUniswapV3PoolQuerySchema,
   type GetUniswapV3PoolData,
-} from '@/types/pools';
+} from '@midcurve/api-shared';
 import { serializeUniswapV3Pool } from '@/lib/serializers';
 import { apiLogger, apiLog } from '@/lib/logger';
 

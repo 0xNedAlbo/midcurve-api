@@ -14,8 +14,8 @@ import {
   createErrorResponse,
   ApiErrorCode,
   ErrorCodeToHttpStatus,
-} from '@/types/common';
-import { CreateErc20TokenRequestSchema } from '@/types/tokens';
+} from '@midcurve/api-shared';
+import { CreateErc20TokenRequestSchema } from '@midcurve/api-shared';
 import { apiLogger, apiLog } from '@/lib/logger';
 
 export const runtime = 'nodejs';

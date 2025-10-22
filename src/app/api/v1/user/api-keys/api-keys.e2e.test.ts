@@ -10,7 +10,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { authenticatedGet, unauthenticatedGet, parseJsonResponse } from '@/test/helpers';
-import type { ApiResponse } from '@/types/common';
+import type { ApiResponse } from '@midcurve/api-shared';
 
 describe('GET /api/v1/user/api-keys', () => {
   describe('session-only authentication validation', () => {

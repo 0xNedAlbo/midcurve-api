@@ -16,7 +16,7 @@ import {
   unauthenticatedPut,
   parseJsonResponse,
 } from '@/test/helpers';
-import type { CreateUniswapV3PositionResponse } from '@/types/positions';
+import type { CreateUniswapV3PositionResponse } from '@midcurve/api-shared';
 
 /**
  * Test position: USDC/WETH position on Arbitrum

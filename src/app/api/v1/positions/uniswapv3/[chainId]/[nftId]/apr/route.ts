@@ -14,11 +14,11 @@ import {
   createErrorResponse,
   ApiErrorCode,
   ErrorCodeToHttpStatus,
-} from '@/types/common';
-import { AprPathParamsSchema } from '@/types/positions';
+} from '@midcurve/api-shared';
+import { AprPathParamsSchema } from '@midcurve/api-shared';
 import { serializeBigInt } from '@/lib/serializers';
 import { apiLogger, apiLog } from '@/lib/logger';
-import type { AprPeriodsResponse, AprPeriodData } from '@/types/positions';
+import type { AprPeriodsResponse, AprPeriodData } from '@midcurve/api-shared';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

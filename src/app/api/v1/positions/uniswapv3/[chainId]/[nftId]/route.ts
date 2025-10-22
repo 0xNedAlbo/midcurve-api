@@ -17,7 +17,7 @@ import {
   createErrorResponse,
   ApiErrorCode,
   ErrorCodeToHttpStatus,
-} from '@/types/common';
+} from '@midcurve/api-shared';
 import {
   GetUniswapV3PositionParamsSchema,
   DeleteUniswapV3PositionParamsSchema,
@@ -25,7 +25,7 @@ import {
   CreateUniswapV3PositionRequestSchema,
   UpdateUniswapV3PositionParamsSchema,
   UpdateUniswapV3PositionRequestSchema,
-} from '@/types/positions';
+} from '@midcurve/api-shared';
 import { serializeBigInt } from '@/lib/serializers';
 import { apiLogger, apiLog } from '@/lib/logger';
 import type {
@@ -33,7 +33,7 @@ import type {
   DeleteUniswapV3PositionResponse,
   CreateUniswapV3PositionData,
   UpdateUniswapV3PositionData,
-} from '@/types/positions';
+} from '@midcurve/api-shared';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

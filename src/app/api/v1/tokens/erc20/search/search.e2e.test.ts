@@ -14,8 +14,8 @@ import {
   parseJsonResponse,
   TEST_TOKENS,
 } from '@/test/helpers';
-import type { SearchErc20TokensResponse } from '@/types/tokens';
-import type { ApiResponse } from '@/types/common';
+import type { SearchErc20TokensResponse } from '@midcurve/api-shared';
+import type { ApiResponse } from '@midcurve/api-shared';
 
 const USDC = TEST_TOKENS.USDC_ETHEREUM;
 

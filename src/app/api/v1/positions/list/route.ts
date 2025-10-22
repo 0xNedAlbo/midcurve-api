@@ -14,11 +14,11 @@ import {
   createPaginatedResponse,
   ApiErrorCode,
   ErrorCodeToHttpStatus,
-} from '@/types/common';
-import { ListPositionsQuerySchema } from '@/types/positions';
+} from '@midcurve/api-shared';
+import { ListPositionsQuerySchema } from '@midcurve/api-shared';
 import { serializeBigInt } from '@/lib/serializers';
 import { apiLogger, apiLog } from '@/lib/logger';
-import type { ListPositionsResponse, ListPositionData } from '@/types/positions';
+import type { ListPositionsResponse, ListPositionData } from '@midcurve/api-shared';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

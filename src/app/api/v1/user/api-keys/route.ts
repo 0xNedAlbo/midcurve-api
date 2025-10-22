@@ -18,8 +18,8 @@ import {
   createErrorResponse,
   ApiErrorCode,
   ErrorCodeToHttpStatus,
-} from '@/types/common';
-import { CreateApiKeyRequestSchema } from '@/types/auth';
+} from '@midcurve/api-shared';
+import { CreateApiKeyRequestSchema } from '@midcurve/api-shared';
 import { apiLogger, apiLog } from '@/lib/logger';
 
 export const runtime = 'nodejs';

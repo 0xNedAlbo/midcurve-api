@@ -14,7 +14,7 @@ import {
   unauthenticatedDelete,
   parseJsonResponse,
 } from '@/test/helpers';
-import type { ApiResponse } from '@/types/common';
+import type { ApiResponse } from '@midcurve/api-shared';
 
 describe('DELETE /api/v1/user/api-keys/:id', () => {
   describe('session-only authentication validation', () => {

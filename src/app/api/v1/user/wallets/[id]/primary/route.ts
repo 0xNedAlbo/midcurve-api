@@ -29,7 +29,7 @@ import {
   createErrorResponse,
   ApiErrorCode,
   ErrorCodeToHttpStatus,
-} from '@/types/common';
+} from '@midcurve/api-shared';
 import { apiLogger, apiLog } from '@/lib/logger';
 
 export const runtime = 'nodejs';

@@ -14,11 +14,11 @@ import {
   createErrorResponse,
   ApiErrorCode,
   ErrorCodeToHttpStatus,
-} from '@/types/common';
-import { LedgerPathParamsSchema } from '@/types/positions';
+} from '@midcurve/api-shared';
+import { LedgerPathParamsSchema } from '@midcurve/api-shared';
 import { serializeBigInt } from '@/lib/serializers';
 import { apiLogger, apiLog } from '@/lib/logger';
-import type { LedgerEventsResponse, LedgerEventData } from '@/types/positions';
+import type { LedgerEventsResponse, LedgerEventData } from '@midcurve/api-shared';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

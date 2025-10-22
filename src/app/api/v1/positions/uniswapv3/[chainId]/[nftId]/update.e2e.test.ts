@@ -26,7 +26,7 @@ import {
 import type {
   CreateUniswapV3PositionResponse,
   UpdateUniswapV3PositionResponse,
-} from '@/types/positions';
+} from '@midcurve/api-shared';
 
 /**
  * Test position: USDC/WETH position on Arbitrum

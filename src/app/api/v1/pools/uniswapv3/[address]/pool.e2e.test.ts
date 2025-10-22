@@ -12,8 +12,8 @@ import {
   parseJsonResponse,
   TEST_TOKENS,
 } from '@/test/helpers';
-import type { ApiResponse, ApiError } from '@/types/common';
-import type { GetUniswapV3PoolData } from '@/types/pools';
+import type { ApiResponse, ApiError } from '@midcurve/api-shared';
+import type { GetUniswapV3PoolData } from '@midcurve/api-shared';
 
 // Test pool addresses on Arbitrum
 const WETH_USDC_POOL_005 = '0xC6962004f452bE9203591991D15f6b388e09E8D0'; // 0.05% fee

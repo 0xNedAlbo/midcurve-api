@@ -14,11 +14,11 @@ import {
   createErrorResponse,
   ApiErrorCode,
   ErrorCodeToHttpStatus,
-} from '@/types/common';
-import { ImportUniswapV3PositionRequestSchema } from '@/types/positions';
+} from '@midcurve/api-shared';
+import { ImportUniswapV3PositionRequestSchema } from '@midcurve/api-shared';
 import { serializeBigInt } from '@/lib/serializers';
 import { apiLogger, apiLog } from '@/lib/logger';
-import type { ImportUniswapV3PositionData } from '@/types/positions';
+import type { ImportUniswapV3PositionData } from '@midcurve/api-shared';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

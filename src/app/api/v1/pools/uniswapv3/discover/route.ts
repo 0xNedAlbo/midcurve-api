@@ -14,8 +14,8 @@ import {
   createErrorResponse,
   ApiErrorCode,
   ErrorCodeToHttpStatus,
-} from '@/types/common';
-import { DiscoverUniswapV3PoolsQuerySchema } from '@/types/pools';
+} from '@midcurve/api-shared';
+import { DiscoverUniswapV3PoolsQuerySchema } from '@midcurve/api-shared';
 import { serializePoolDiscoveryResult } from '@/lib/serializers';
 import { apiLogger, apiLog } from '@/lib/logger';
 
