@@ -1,11 +1,12 @@
 /**
  * Position List Endpoint Types
  *
- * Types for listing user's Uniswap V3 positions with pagination and filtering.
+ * Types for listing user's positions across all protocols with pagination,
+ * filtering, and sorting.
  */
 
 import type { BigIntToString, PaginatedResponse } from '../common';
-import type { UniswapV3Position } from '@midcurve/shared';
+import type { AnyPosition } from '@midcurve/shared';
 
 /**
  * Position status filter options
@@ -13,14 +14,29 @@ import type { UniswapV3Position } from '@midcurve/shared';
 export type PositionStatus = 'active' | 'closed' | 'all';
 
 /**
- * GET /api/v1/positions/uniswapv3/list - Query parameters
+ * Sort field options
  */
-export interface ListUniswapV3PositionsParams {
+export type PositionSortBy =
+  | 'createdAt'
+  | 'positionOpenedAt'
+  | 'currentValue'
+  | 'unrealizedPnl';
+
+/**
+ * Sort direction options
+ */
+export type SortDirection = 'asc' | 'desc';
+
+/**
+ * GET /api/v1/positions/list - Query parameters
+ */
+export interface ListPositionsParams {
   /**
-   * Filter by EVM chain ID
-   * @example 1 (Ethereum), 42161 (Arbitrum), 8453 (Base)
+   * Filter by protocol(s)
+   * Can be a single protocol or multiple protocols
+   * @example ['uniswapv3', 'orca']
    */
-  chainId?: number;
+  protocols?: string[];
 
   /**
    * Filter by position status
@@ -30,6 +46,18 @@ export interface ListUniswapV3PositionsParams {
    * @default 'all'
    */
   status?: PositionStatus;
+
+  /**
+   * Sort field
+   * @default 'createdAt'
+   */
+  sortBy?: PositionSortBy;
+
+  /**
+   * Sort direction
+   * @default 'desc'
+   */
+  sortDirection?: SortDirection;
 
   /**
    * Number of results per page
@@ -50,22 +78,25 @@ export interface ListUniswapV3PositionsParams {
 /**
  * Position data for API response
  *
- * Based on UniswapV3Position from @midcurve/shared with:
+ * Based on AnyPosition from @midcurve/shared with:
  * - bigint fields converted to strings (for JSON serialization)
  * - Date fields converted to ISO 8601 strings
  * - Fully nested pool and token objects
+ * - Config and state as unknown (not protocol-specific)
  */
-export type ListUniswapV3PositionData = BigIntToString<UniswapV3Position>;
+export type ListPositionData = BigIntToString<AnyPosition>;
 
 /**
- * GET /api/v1/positions/uniswapv3/list - Response
+ * GET /api/v1/positions/list - Response
  */
-export type ListUniswapV3PositionsResponse = PaginatedResponse<ListUniswapV3PositionData> & {
+export type ListPositionsResponse = PaginatedResponse<ListPositionData> & {
   meta: {
     timestamp: string;
     filters: {
-      chainId?: number;
+      protocols?: string[];
       status: PositionStatus;
+      sortBy: PositionSortBy;
+      sortDirection: SortDirection;
     };
   };
 };

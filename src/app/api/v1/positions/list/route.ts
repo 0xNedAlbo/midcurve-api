@@ -1,48 +1,47 @@
 /**
- * Uniswap V3 Position List Endpoint
+ * Generic Position List Endpoint
  *
- * GET /api/v1/positions/uniswapv3/list
+ * GET /api/v1/positions/list
  *
  * Authentication: Required (session or API key)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/middleware/with-auth';
-import { UniswapV3PositionService } from '@midcurve/services';
+import { PositionListService } from '@midcurve/services';
 import {
   createErrorResponse,
+  createPaginatedResponse,
   ApiErrorCode,
   ErrorCodeToHttpStatus,
-  createPaginatedResponse,
 } from '@/types/common';
-import { ListUniswapV3PositionsQuerySchema } from '@/types/positions';
+import { ListPositionsQuerySchema } from '@/types/positions';
 import { serializeBigInt } from '@/lib/serializers';
 import { apiLogger, apiLog } from '@/lib/logger';
-import type {
-  ListUniswapV3PositionData,
-  ListUniswapV3PositionsResponse,
-  PositionStatus,
-} from '@/types/positions';
+import type { ListPositionsResponse } from '@/types/positions';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const uniswapV3PositionService = new UniswapV3PositionService();
+const positionListService = new PositionListService();
 
 /**
- * GET /api/v1/positions/uniswapv3/list
+ * GET /api/v1/positions/list
  *
- * List user's Uniswap V3 positions with pagination and filtering.
+ * List user's positions across all protocols with pagination, filtering, and sorting.
  *
  * Features:
- * - Paginated results with offset-based pagination
- * - Filter by chain ID
+ * - Cross-protocol support (Uniswap V3, Orca, Raydium, etc.)
+ * - Filter by protocol(s)
  * - Filter by position status (active/closed/all)
- * - Sorted by creation date (newest first)
+ * - Sorting by multiple fields
+ * - Offset-based pagination
  *
  * Query parameters:
- * - chainId (optional): Filter by specific chain (e.g., 1, 42161, 8453)
+ * - protocols (optional): Comma-separated protocol list (e.g., 'uniswapv3,orca')
  * - status (optional): Filter by status ('active', 'closed', 'all') - default: 'all'
+ * - sortBy (optional): Sort field ('createdAt', 'positionOpenedAt', 'currentValue', 'unrealizedPnl') - default: 'createdAt'
+ * - sortDirection (optional): Sort direction ('asc', 'desc') - default: 'desc'
  * - limit (optional): Results per page (1-100, default: 20)
  * - offset (optional): Pagination offset (>=0, default: 0)
  *
@@ -73,8 +72,10 @@ const uniswapV3PositionService = new UniswapV3PositionService();
  *   "meta": {
  *     "timestamp": "2025-01-15T...",
  *     "filters": {
- *       "chainId": 1,
- *       "status": "active"
+ *       "protocols": ["uniswapv3"],
+ *       "status": "active",
+ *       "sortBy": "createdAt",
+ *       "sortDirection": "desc"
  *     }
  *   }
  * }
@@ -87,13 +88,15 @@ export async function GET(request: NextRequest): Promise<Response> {
       // 1. Parse and validate query parameters
       const { searchParams } = new URL(request.url);
       const queryParams = {
-        chainId: searchParams.get('chainId') ?? undefined,
+        protocols: searchParams.get('protocols') ?? undefined,
         status: searchParams.get('status') ?? undefined,
+        sortBy: searchParams.get('sortBy') ?? undefined,
+        sortDirection: searchParams.get('sortDirection') ?? undefined,
         limit: searchParams.get('limit') ?? undefined,
         offset: searchParams.get('offset') ?? undefined,
       };
 
-      const validation = ListUniswapV3PositionsQuerySchema.safeParse(queryParams);
+      const validation = ListPositionsQuerySchema.safeParse(queryParams);
 
       if (!validation.success) {
         apiLog.validationError(apiLogger, requestId, validation.error.errors);
@@ -111,36 +114,48 @@ export async function GET(request: NextRequest): Promise<Response> {
         });
       }
 
-      const { chainId, status, limit, offset } = validation.data;
+      const { protocols, status, sortBy, sortDirection, limit, offset } =
+        validation.data;
 
       apiLog.businessOperation(apiLogger, requestId, 'list', 'positions', user.id, {
-        chainId,
+        protocols,
         status,
+        sortBy,
+        sortDirection,
         limit,
         offset,
       });
 
       // 2. Query positions from service
-      const { positions, total } = await uniswapV3PositionService.findMany(user.id, {
-        chainId,
+      const result = await positionListService.list(user.id, {
+        protocols,
         status,
+        sortBy,
+        sortDirection,
         limit,
         offset,
       });
 
       // 3. Serialize bigints to strings for JSON
-      const serializedPositions = positions.map((position) =>
+      const serializedPositions = result.positions.map((position: any) =>
         serializeBigInt(position)
-      ) as ListUniswapV3PositionData[];
+      );
 
       // 4. Create paginated response
-      const response: ListUniswapV3PositionsResponse = {
-        ...createPaginatedResponse(serializedPositions, total, limit, offset),
+      const response: ListPositionsResponse = {
+        ...createPaginatedResponse(
+          serializedPositions,
+          result.total,
+          result.limit,
+          result.offset
+        ),
         meta: {
           timestamp: new Date().toISOString(),
           filters: {
-            ...(chainId !== undefined && { chainId }),
-            status: status as PositionStatus,
+            ...(protocols && protocols.length > 0 && { protocols }),
+            status,
+            sortBy,
+            sortDirection,
           },
         },
       };
@@ -148,11 +163,11 @@ export async function GET(request: NextRequest): Promise<Response> {
       apiLogger.info(
         {
           requestId,
-          count: positions.length,
-          total,
-          limit,
-          offset,
-          hasMore: offset + limit < total,
+          count: result.positions.length,
+          total: result.total,
+          limit: result.limit,
+          offset: result.offset,
+          hasMore: result.offset + result.limit < result.total,
         },
         'Positions retrieved successfully'
       );
@@ -163,12 +178,11 @@ export async function GET(request: NextRequest): Promise<Response> {
     } catch (error) {
       apiLog.methodError(
         apiLogger,
-        'GET /api/v1/positions/uniswapv3/list',
+        'GET /api/v1/positions/list',
         error,
         { requestId }
       );
 
-      // Generic error
       const errorResponse = createErrorResponse(
         ApiErrorCode.INTERNAL_SERVER_ERROR,
         'Failed to retrieve positions',
