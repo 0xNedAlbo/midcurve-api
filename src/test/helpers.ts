@@ -229,6 +229,50 @@ export async function unauthenticatedPost(endpoint: string, body: unknown): Prom
 }
 
 /**
+ * Make an authenticated PUT request to an API endpoint
+ *
+ * @param endpoint - API endpoint path
+ * @param body - Request body (will be JSON stringified)
+ * @param apiKey - Optional API key (defaults to TEST_API_KEY)
+ * @returns Response object
+ */
+export async function authenticatedPut(
+  endpoint: string,
+  body: unknown,
+  apiKey: string = TEST_API_KEY
+): Promise<Response> {
+  const url = `${API_BASE_URL}${endpoint}`;
+
+  return fetch(url, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+}
+
+/**
+ * Make an unauthenticated PUT request to an API endpoint
+ *
+ * @param endpoint - API endpoint path
+ * @param body - Request body (will be JSON stringified)
+ * @returns Response object
+ */
+export async function unauthenticatedPut(endpoint: string, body: unknown): Promise<Response> {
+  const url = `${API_BASE_URL}${endpoint}`;
+
+  return fetch(url, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+}
+
+/**
  * Make an authenticated PATCH request to an API endpoint
  *
  * @param endpoint - API endpoint path
